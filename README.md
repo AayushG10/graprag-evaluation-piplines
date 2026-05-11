@@ -4,6 +4,25 @@
 
 ---
 
+## Screenshots
+
+### Hero — Landing Page
+![Hero landing page with gradient headline and stats](./screenshots/01-hero.png)
+
+### Architecture — Three Pipelines
+![Three pipeline architecture cards with pros/cons](./screenshots/02-architecture.png)
+
+### Dataset — Five Companies
+![Dataset section showing AAPL, MSFT, JPM, XOM, JNJ cards](./screenshots/03-dataset.png)
+
+### Demo — Query Input
+![Live benchmark query input with sample chips and pipeline icons](./screenshots/04-query-input.png)
+
+### Results — Side-by-side Comparison
+![Three pipeline results: LLM Only vs Basic RAG vs GraphRAG with token/latency/BERTScore metrics](./screenshots/05-results.png)
+
+---
+
 ## What This Project Does
 
 This project runs the same financial question through **three AI pipelines simultaneously** and measures the difference:
