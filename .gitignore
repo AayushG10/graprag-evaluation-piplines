@@ -1,0 +1,20 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+
+# Data — raw filings can be huge; exclude from git
+data/raw/
+data/processed/faiss.index
+data/processed/chunks.jsonl
+
+# Node
+dashboard/frontend/node_modules/
+dashboard/frontend/.next/
+
+# OS
+.DS_Store

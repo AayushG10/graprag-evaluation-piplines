@@ -20,6 +20,8 @@ This project runs the same financial question through **three AI pipelines simul
 
 ## Architecture
 
+> **Interactive diagram:** Open [`architecture.excalidraw`](./architecture.excalidraw) at [excalidraw.com](https://excalidraw.com) — drag the file onto the canvas to explore the full system layout with color-coded layers, arrows, and annotations.
+
 ### System Overview
 
 ```
