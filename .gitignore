@@ -18,3 +18,4 @@ dashboard/frontend/.next/
 
 # OS
 .DS_Store
+graphrag-service/configs/server_config.json
