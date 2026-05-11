@@ -290,37 +290,180 @@ export default function Home() {
 
       {/* ════════════════════ DATASET ════════════════════ */}
       <section id="data" className="py-24 px-6 border-t border-slate-800/60">
-        <div className="mx-auto max-w-5xl">
-          <div className="text-center mb-12 space-y-3">
+        <div className="mx-auto max-w-6xl">
+
+          {/* Header */}
+          <div className="text-center mb-14 space-y-3">
             <p className="text-xs font-bold uppercase tracking-widest text-cyan-500">Dataset</p>
-            <h2 className="text-4xl font-black text-white">Real filings. Real answers.</h2>
-            <p className="text-slate-400 max-w-lg mx-auto text-sm">
-              25 SEC 10-K annual reports downloaded directly from EDGAR, parsed and indexed.
+            <h2 className="text-4xl sm:text-5xl font-black text-white">Real filings. Real answers.</h2>
+            <p className="text-slate-400 max-w-xl mx-auto">
+              25 SEC 10-K annual reports downloaded directly from EDGAR, chunked, embedded, and loaded into TigerGraph — no synthetic data, no shortcuts.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 mb-8">
+          {/* Stats row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
             {[
-              { ticker: "AAPL", name: "Apple", sector: "Technology", color: "from-slate-700 to-slate-800" },
-              { ticker: "MSFT", name: "Microsoft", sector: "Technology", color: "from-blue-900/60 to-slate-800" },
-              { ticker: "JPM",  name: "JPMorgan", sector: "Finance", color: "from-sky-900/60 to-slate-800" },
-              { ticker: "XOM",  name: "ExxonMobil", sector: "Energy", color: "from-red-900/40 to-slate-800" },
-              { ticker: "JNJ",  name: "Johnson & Johnson", sector: "Healthcare", color: "from-rose-900/40 to-slate-800" },
-            ].map(c => (
-              <div key={c.ticker} className={`rounded-xl border border-slate-700/50 bg-gradient-to-b ${c.color} p-4 text-center hover:border-slate-600 transition-colors`}>
-                <p className="text-2xl font-black text-white">{c.ticker}</p>
-                <p className="text-xs text-slate-300 mt-0.5">{c.name}</p>
-                <p className="text-[10px] text-slate-500 mt-1 rounded-full border border-slate-700 px-2 py-0.5 inline-block">{c.sector}</p>
+              { value: "25",     label: "10-K Filings",      sub: "5 companies × 5 years",         color: "text-cyan-400" },
+              { value: "4,400+", label: "Text Chunks",       sub: "512 tokens, 64 overlap",         color: "text-blue-400" },
+              { value: "7",      label: "Vertex Types",      sub: "Company, Doc, Risk, Exec…",      color: "text-emerald-400" },
+              { value: "6",      label: "Edge Types",        sub: "Multi-hop graph traversal",      color: "text-violet-400" },
+            ].map(s => (
+              <div key={s.label} className="rounded-2xl border border-white/5 bg-slate-900/50 p-5 text-center">
+                <div className={`text-3xl font-black mb-1 ${s.color}`}>{s.value}</div>
+                <div className="text-xs font-semibold text-slate-300 mb-0.5">{s.label}</div>
+                <div className="text-[10px] text-slate-500">{s.sub}</div>
               </div>
             ))}
           </div>
 
-          <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 flex flex-wrap justify-center gap-2">
-            <span className="text-xs text-slate-500">Years covered:</span>
-            {["2019", "2020", "2021", "2022", "2023"].map(y => (
-              <span key={y} className="rounded-full border border-slate-700 bg-slate-800/50 px-3 py-0.5 text-xs text-slate-400 font-mono">{y}</span>
+          {/* Company cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 mb-8">
+            {[
+              {
+                ticker: "AAPL", name: "Apple Inc.", sector: "Technology",
+                color: "from-slate-700/50 to-slate-900", border: "border-slate-600/40 hover:border-blue-500/40",
+                accent: "text-blue-400",
+                facts: ["iPhone, Mac, Services", "Revenue $394B (2022)", "Tim Cook, CEO"],
+                filings: 5,
+              },
+              {
+                ticker: "MSFT", name: "Microsoft Corp.", sector: "Technology",
+                color: "from-blue-900/40 to-slate-900", border: "border-blue-800/30 hover:border-blue-500/50",
+                accent: "text-cyan-400",
+                facts: ["Cloud, Office, Azure", "Revenue $211B (2023)", "Satya Nadella, CEO"],
+                filings: 5,
+              },
+              {
+                ticker: "JPM", name: "JPMorgan Chase", sector: "Finance",
+                color: "from-sky-900/30 to-slate-900", border: "border-sky-800/30 hover:border-sky-500/40",
+                accent: "text-sky-400",
+                facts: ["Largest US bank", "Assets $3.7T (2022)", "Jamie Dimon, CEO"],
+                filings: 5,
+              },
+              {
+                ticker: "XOM", name: "ExxonMobil", sector: "Energy",
+                color: "from-orange-900/30 to-slate-900", border: "border-orange-800/30 hover:border-orange-500/40",
+                accent: "text-orange-400",
+                facts: ["Oil, Gas, Chemicals", "Revenue $398B (2022)", "Darren Woods, CEO"],
+                filings: 5,
+              },
+              {
+                ticker: "JNJ", name: "Johnson & Johnson", sector: "Healthcare",
+                color: "from-rose-900/30 to-slate-900", border: "border-rose-800/30 hover:border-rose-500/40",
+                accent: "text-rose-400",
+                facts: ["Pharma, MedTech", "Revenue $93.8B (2022)", "Joaquin Duato, CEO"],
+                filings: 5,
+              },
+            ].map(c => (
+              <div key={c.ticker} className={`rounded-2xl border ${c.border} bg-gradient-to-b ${c.color} p-5 flex flex-col gap-3 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-black/30`}>
+                {/* Header */}
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className={`text-2xl font-black ${c.accent}`}>{c.ticker}</p>
+                    <p className="text-xs text-slate-300 mt-0.5 leading-tight">{c.name}</p>
+                  </div>
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-500 border border-slate-700 rounded-full px-2 py-0.5">{c.sector}</span>
+                </div>
+
+                {/* Facts */}
+                <ul className="space-y-1.5">
+                  {c.facts.map(f => (
+                    <li key={f} className="flex items-start gap-1.5 text-[11px] text-slate-400">
+                      <span className={`mt-0.5 text-[8px] ${c.accent}`}>▶</span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Footer */}
+                <div className="mt-auto pt-3 border-t border-white/5 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-500">10-K filings</span>
+                  <span className={`text-sm font-bold ${c.accent}`}>{c.filings} years</span>
+                </div>
+              </div>
             ))}
           </div>
+
+          {/* Years + pipeline legend row */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            {/* Years */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Years Covered</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { y: "2019", note: "Pre-COVID baseline" },
+                  { y: "2020", note: "COVID impact" },
+                  { y: "2021", note: "Recovery year" },
+                  { y: "2022", note: "Inflation & rates" },
+                  { y: "2023", note: "AI boom" },
+                ].map(({ y, note }) => (
+                  <div key={y} className="rounded-xl border border-slate-700 bg-slate-800/50 px-3 py-2 text-center">
+                    <div className="text-sm font-black text-white font-mono">{y}</div>
+                    <div className="text-[9px] text-slate-500 mt-0.5">{note}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* How data flows */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Data Pipeline</p>
+              <div className="flex flex-col gap-2">
+                {[
+                  { step: "1", label: "SEC EDGAR",        desc: "Download raw 10-K HTML",               color: "text-orange-400" },
+                  { step: "2", label: "Parse & Chunk",    desc: "HTML→text, 512-token chunks + FAISS",  color: "text-cyan-400" },
+                  { step: "3", label: "NER Extraction",   desc: "spaCy extracts entities & risk factors",color: "text-violet-400" },
+                  { step: "4", label: "TigerGraph Load",  desc: "Vertices + edges via pyTigerGraph",    color: "text-emerald-400" },
+                ].map(s => (
+                  <div key={s.step} className="flex items-center gap-3">
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black bg-slate-800 ${s.color} shrink-0`}>{s.step}</span>
+                    <span className={`text-xs font-semibold ${s.color} w-28 shrink-0`}>{s.label}</span>
+                    <span className="text-[11px] text-slate-500">{s.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Graph schema */}
+          <div className="mt-4 rounded-2xl border border-emerald-500/10 bg-emerald-500/5 p-5">
+            <p className="text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-4">TigerGraph Knowledge Graph — 7 Vertex Types · 6 Edge Types</p>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              {[
+                { label: "Company",     color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
+                { label: "→ FILED_BY →",  color: "text-slate-500", plain: true },
+                { label: "Document",    color: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30" },
+                { label: "→ MENTIONS_RISK →", color: "text-slate-500", plain: true },
+                { label: "Risk",        color: "bg-red-500/20 text-red-300 border-red-500/30" },
+                { label: "→ SUCCEEDED_BY →", color: "text-slate-500", plain: true },
+                { label: "Document",    color: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30" },
+              ].map((n, i) => (
+                n.plain
+                  ? <span key={i} className="text-slate-500 font-mono">{n.label}</span>
+                  : <span key={i} className={`px-3 py-1 rounded-full border font-semibold ${n.color}`}>{n.label}</span>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs mt-2">
+              {[
+                { label: "Company",  color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
+                { label: "→ HAS_EXECUTIVE →", color: "text-slate-500", plain: true },
+                { label: "Executive", color: "bg-violet-500/20 text-violet-300 border-violet-500/30" },
+                { label: "·",         color: "text-slate-600", plain: true },
+                { label: "Company",  color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
+                { label: "→ OPERATES_IN →", color: "text-slate-500", plain: true },
+                { label: "Sector",   color: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
+              ].map((n, i) => (
+                n.plain
+                  ? <span key={i} className="text-slate-500 font-mono">{n.label}</span>
+                  : <span key={i} className={`px-3 py-1 rounded-full border font-semibold ${n.color}`}>{n.label}</span>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-500 mt-3">
+              SUCCEEDED_BY edges connect consecutive annual filings — enabling multi-hop year-over-year trend queries like &quot;How did Apple&apos;s supply chain risk change from 2019 to 2022?&quot;
+            </p>
+          </div>
+
         </div>
       </section>
 
