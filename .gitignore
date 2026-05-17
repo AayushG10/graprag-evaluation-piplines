@@ -9,8 +9,9 @@ venv/
 
 # Data — raw filings can be huge; exclude from git
 data/raw/
-data/processed/faiss.index
-data/processed/chunks.jsonl
+# data/processed files are committed so Railway deployment works
+# data/processed/faiss.index
+# data/processed/chunks.jsonl
 
 # Node
 dashboard/frontend/node_modules/
