@@ -39,8 +39,8 @@ def llm_judge(
         return None, None
     try:
         client = OpenAI(
-            api_key=settings.OPENROUTER_API_KEY,
-            base_url=settings.OPENROUTER_BASE_URL,
+            api_key=settings.active_api_key,
+            base_url=settings.active_base_url,
         )
         if reference and reference.strip():
             prompt = _PROMPT_WITH_REF.format(
@@ -50,7 +50,7 @@ def llm_judge(
             prompt = _PROMPT_NO_REF.format(question=question, candidate=candidate)
 
         resp = client.chat.completions.create(
-            model=settings.JUDGE_MODEL,
+            model=settings.active_judge_model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=150,
             temperature=0,

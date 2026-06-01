@@ -2,11 +2,38 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # OpenRouter
+    # ── LLM Provider ──────────────────────────────────────────────────────────
+    # Set LLM_PROVIDER=gemini to use Gemini, otherwise uses OpenRouter
+    LLM_PROVIDER: str = "gemini"   # "gemini" | "openrouter"
+
+    # Gemini (Google)
+    GEMINI_API_KEY: str = ""
+    GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_JUDGE_MODEL: str = "gemini-2.0-flash"
+
+    # OpenRouter (fallback)
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     OPENROUTER_MODEL: str = "meta-llama/llama-3.1-70b-instruct"
     JUDGE_MODEL: str = "openai/gpt-4o-mini"
+
+    # Active model (resolved at runtime based on LLM_PROVIDER)
+    @property
+    def active_api_key(self) -> str:
+        return self.GEMINI_API_KEY if self.LLM_PROVIDER == "gemini" else self.OPENROUTER_API_KEY
+
+    @property
+    def active_base_url(self) -> str:
+        return self.GEMINI_BASE_URL if self.LLM_PROVIDER == "gemini" else self.OPENROUTER_BASE_URL
+
+    @property
+    def active_model(self) -> str:
+        return self.GEMINI_MODEL if self.LLM_PROVIDER == "gemini" else self.OPENROUTER_MODEL
+
+    @property
+    def active_judge_model(self) -> str:
+        return self.GEMINI_JUDGE_MODEL if self.LLM_PROVIDER == "gemini" else self.JUDGE_MODEL
 
     # Embeddings
     EMBED_MODEL: str = "all-MiniLM-L6-v2"

@@ -25,8 +25,8 @@ class BasicRAGPipeline(BasePipeline):
         with open(settings.CHUNKS_PATH) as f:
             self.chunks = [json.loads(line) for line in f]
         self.client = OpenAI(
-            api_key=settings.OPENROUTER_API_KEY,
-            base_url=settings.OPENROUTER_BASE_URL,
+            api_key=settings.active_api_key,
+            base_url=settings.active_base_url,
         )
 
     def _retrieve(self, query: str) -> list[str]:
@@ -45,7 +45,7 @@ class BasicRAGPipeline(BasePipeline):
             context = "\n\n---\n\n".join(chunks)
             user_msg = f"Context from SEC filings:\n{context}\n\nQuestion: {query}"
             resp = self.client.chat.completions.create(
-                model=settings.OPENROUTER_MODEL,
+                model=settings.active_model,
                 messages=[
                     {"role": "system", "content": _SYSTEM},
                     {"role": "user", "content": user_msg},
@@ -61,7 +61,7 @@ class BasicRAGPipeline(BasePipeline):
                 total_tokens=usage.total_tokens,
                 latency_ms=latency_ms,
                 cost_usd=self._estimate_cost(
-                    settings.OPENROUTER_MODEL,
+                    settings.active_model,
                     usage.prompt_tokens,
                     usage.completion_tokens,
                 ),

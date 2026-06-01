@@ -1,4 +1,4 @@
-"""Pipeline 1: Raw prompt → OpenRouter LLM. No retrieval."""
+"""Pipeline 1: Raw prompt → LLM (Gemini or OpenRouter). No retrieval."""
 
 import time
 from openai import OpenAI
@@ -17,15 +17,15 @@ class LLMOnlyPipeline(BasePipeline):
 
     def __init__(self) -> None:
         self.client = OpenAI(
-            api_key=settings.OPENROUTER_API_KEY,
-            base_url=settings.OPENROUTER_BASE_URL,
+            api_key=settings.active_api_key,
+            base_url=settings.active_base_url,
         )
 
     def run(self, query: str) -> PipelineResult:
         t0 = time.monotonic()
         try:
             resp = self.client.chat.completions.create(
-                model=settings.OPENROUTER_MODEL,
+                model=settings.active_model,
                 messages=[
                     {"role": "system", "content": _SYSTEM},
                     {"role": "user", "content": query},
@@ -41,7 +41,7 @@ class LLMOnlyPipeline(BasePipeline):
                 total_tokens=usage.total_tokens,
                 latency_ms=latency_ms,
                 cost_usd=self._estimate_cost(
-                    settings.OPENROUTER_MODEL,
+                    settings.active_model,
                     usage.prompt_tokens,
                     usage.completion_tokens,
                 ),
