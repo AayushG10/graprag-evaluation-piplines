@@ -17,6 +17,7 @@ class PipelineResponse(BaseModel):
     cost_usd: float
     retrieved_chunks: list[str]
     graph_hops: int
+    graph_data: Optional[dict] = None
     bertscore_f1: Optional[float] = None
     judge_pass: Optional[bool] = None
     judge_reason: Optional[str] = None

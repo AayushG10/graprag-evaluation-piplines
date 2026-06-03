@@ -11,24 +11,34 @@ import argparse
 from sec_edgar_downloader import Downloader
 from config import settings
 
-# Full dataset — 25 companies across 5 sectors
+# Round 2 — 50 companies across 8 sectors (~100M tokens)
 SP500_TICKERS = [
-    # Tech
+    # Technology (10)
     "AAPL", "MSFT", "GOOGL", "AMZN", "META",
-    # Finance
+    "NVDA", "TSLA", "INTC", "AMD", "ORCL",
+    # Finance (10)
     "JPM", "BAC", "WFC", "GS", "MS",
-    # Energy
-    "XOM", "CVX", "COP",
-    # Healthcare
-    "JNJ", "PFE", "MRK",
-    # Retail
+    "C", "AXP", "BLK", "SCHW", "USB",
+    # Healthcare (8)
+    "JNJ", "PFE", "MRK", "ABBV",
+    "UNH", "CVS", "BMY", "AMGN",
+    # Energy (7)
+    "XOM", "CVX", "COP", "SLB",
+    "PSX", "VLO", "MPC",
+    # Retail & Consumer (7)
     "WMT", "TGT", "HD", "COST",
-    # Industrial
-    "CAT", "HON", "GE", "T", "VZ",
+    "MCD", "SBUX", "NKE",
+    # Industrial (5)
+    "CAT", "HON", "GE", "BA", "MMM",
+    # Telecom & Media (3)
+    "T", "VZ", "DIS",
 ]
 
-# Start with 5 tickers to test the pipeline end-to-end before scaling
+# Round 1 pilot tickers (already downloaded)
 PILOT_TICKERS = ["AAPL", "MSFT", "JPM", "XOM", "JNJ"]
+
+# Round 2 — new tickers only (skip already downloaded)
+ROUND2_NEW_TICKERS = [t for t in SP500_TICKERS if t not in PILOT_TICKERS]
 
 
 def download_10k(
@@ -60,12 +70,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download SEC 10-K filings")
     parser.add_argument("--tickers", nargs="+", default=None)
     parser.add_argument("--full", action="store_true",
-                        help="Download all 25 tickers (takes ~20 min)")
+                        help="Download all 50 tickers (takes ~45 min)")
+    parser.add_argument("--round2", action="store_true",
+                        help="Download only the 45 new Round 2 tickers")
     parser.add_argument("--email", default="hackathon@example.com")
     args = parser.parse_args()
 
     years = [int(y) for y in settings.FILING_YEARS.split(",")]
-    tickers = SP500_TICKERS if args.full else (args.tickers or PILOT_TICKERS)
+    if args.full:
+        tickers = SP500_TICKERS
+    elif args.round2:
+        tickers = ROUND2_NEW_TICKERS
+    else:
+        tickers = args.tickers or PILOT_TICKERS
 
     print(f"Downloading {len(tickers)} tickers × {len(years)} years "
           f"= {len(tickers) * len(years)} filings\n")

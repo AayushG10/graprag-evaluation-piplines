@@ -19,10 +19,27 @@ _graphrag:  GraphRAGPipeline | None = None
 def init_pipelines() -> None:
     global _llm_only, _basic_rag, _graphrag
     print("Initialising pipelines...")
-    _llm_only = LLMOnlyPipeline()
-    _basic_rag = BasicRAGPipeline()
-    _graphrag  = GraphRAGPipeline()
-    print("✅ All pipelines ready")
+
+    try:
+        _llm_only = LLMOnlyPipeline()
+        print("  ✅ LLM Only pipeline ready")
+    except Exception as exc:
+        print(f"  ⚠ LLM Only pipeline failed to init: {exc}")
+
+    try:
+        _basic_rag = BasicRAGPipeline()
+        print("  ✅ Basic RAG pipeline ready")
+    except Exception as exc:
+        print(f"  ⚠ Basic RAG pipeline failed to init (FAISS index may not exist yet): {exc}")
+
+    try:
+        _graphrag = GraphRAGPipeline()
+        print("  ✅ GraphRAG pipeline ready")
+    except Exception as exc:
+        print(f"  ⚠ GraphRAG pipeline failed to init: {exc}")
+
+    ready = sum(p is not None for p in [_llm_only, _basic_rag, _graphrag])
+    print(f"✅ {ready}/3 pipelines ready")
 
 
 def _score_pipeline(
@@ -59,6 +76,7 @@ def _to_response(r: PipelineResult) -> PipelineResponse:
         cost_usd=round(r.cost_usd, 6),
         retrieved_chunks=r.retrieved_chunks,
         graph_hops=r.graph_hops,
+        graph_data=r.graph_data,
         bertscore_f1=r.bertscore_f1,
         judge_pass=r.judge_pass,
         judge_reason=r.judge_reason,
@@ -66,14 +84,25 @@ def _to_response(r: PipelineResult) -> PipelineResponse:
     )
 
 
+def _safe_run(pipeline, query: str) -> PipelineResult:
+    """Run a pipeline, returning an error result if the pipeline is None or throws."""
+    if pipeline is None:
+        return PipelineResult(
+            pipeline_name="unknown",
+            answer="",
+            error="Pipeline not initialized (check server logs)",
+        )
+    return pipeline.run(query)
+
+
 async def run_all(query: str, reference: Optional[str] = None) -> BenchmarkResponse:
     loop = asyncio.get_running_loop()
 
     # Run all 3 pipelines in parallel
     p1, p2, p3 = await asyncio.gather(
-        loop.run_in_executor(_executor, _llm_only.run, query),
-        loop.run_in_executor(_executor, _basic_rag.run, query),
-        loop.run_in_executor(_executor, _graphrag.run,  query),
+        loop.run_in_executor(_executor, _safe_run, _llm_only, query),
+        loop.run_in_executor(_executor, _safe_run, _basic_rag, query),
+        loop.run_in_executor(_executor, _safe_run, _graphrag,  query),
     )
 
     # Determine reference for scoring:

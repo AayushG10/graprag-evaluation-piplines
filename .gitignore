@@ -7,11 +7,12 @@ venv/
 .mypy_cache/
 .ruff_cache/
 
-# Data — raw filings can be huge; exclude from git
+# Data — exclude large files that exceed GitHub's 100MB limit
 data/raw/
-# data/processed files are committed so Railway deployment works
-# data/processed/faiss.index
-# data/processed/chunks.jsonl
+data/processed/chunks.jsonl
+data/processed/faiss.index
+# Keep .gitkeep so the directory is tracked
+
 
 # Node
 dashboard/frontend/node_modules/

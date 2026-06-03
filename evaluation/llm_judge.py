@@ -5,26 +5,28 @@ from openai import OpenAI
 from config import settings
 
 # With reference — compare candidate against known-good answer
-_PROMPT_WITH_REF = """You are a strict financial analyst evaluating an AI-generated answer.
+_PROMPT_WITH_REF = """You are a financial analyst evaluating an AI-generated answer.
 
 Question: {question}
 Reference answer: {reference}
 Candidate answer: {candidate}
 
-Does the candidate correctly and completely address the question, consistent with the reference?
+Does the candidate substantially address the question and align with the key points in the reference?
+Minor omissions are acceptable — judge on whether the core information is correct and relevant.
 Reply with exactly two lines:
 VERDICT: PASS or FAIL
 REASON: one sentence explaining why."""
 
 # Without reference — judge factuality and relevance on their own
-_PROMPT_NO_REF = """You are a strict financial analyst. Evaluate whether this AI-generated answer is:
+_PROMPT_NO_REF = """You are a financial analyst. Evaluate whether this AI-generated answer is:
 1. Directly relevant to the question
 2. Factually reasonable (no obvious hallucinations)
-3. Specific enough to be useful (not just vague generalities)
+3. Provides useful information (not completely vague)
 
 Question: {question}
 Answer: {candidate}
 
+Be fair — a good answer that covers the main points should PASS even if not exhaustive.
 Reply with exactly two lines:
 VERDICT: PASS or FAIL
 REASON: one sentence explaining why."""

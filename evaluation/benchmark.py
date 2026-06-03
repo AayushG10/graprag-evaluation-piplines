@@ -23,24 +23,99 @@ QUESTIONS = [
                      "third-party manufacturers.",
     },
     {
-        "query": "What impact did COVID-19 have on Microsoft's business in 2020?",
-        "reference": "Microsoft saw increased demand for cloud services and Teams during COVID-19, "
-                     "while some hardware segments faced supply constraints.",
+        "query": "What was Microsoft's total revenue in fiscal year 2023?",
+        "reference": "Microsoft reported total revenue of $211.9 billion in fiscal year 2023, "
+                     "driven by cloud services, Office products, and LinkedIn.",
     },
     {
-        "query": "What are the main risks ExxonMobil faces?",
-        "reference": "ExxonMobil faces risks including oil price volatility, climate regulation, "
-                     "geopolitical instability, and transition to renewable energy.",
+        "query": "How did COVID-19 impact JPMorgan's business operations in 2020?",
+        "reference": "JPMorgan increased credit loss provisions significantly in 2020 due to COVID-19, "
+                     "while investment banking revenues rose on market volatility.",
     },
     {
-        "query": "What are JPMorgan's key business segments?",
-        "reference": "JPMorgan operates through Consumer & Community Banking, Corporate & Investment Bank, "
-                     "Commercial Banking, and Asset & Wealth Management.",
+        "query": "What are ExxonMobil's key environmental and climate risks?",
+        "reference": "ExxonMobil faces risks from climate regulation, carbon taxes, stranded assets, "
+                     "and transition to renewable energy affecting long-term demand for oil.",
     },
     {
-        "query": "What cybersecurity risks does Johnson & Johnson report?",
-        "reference": "Johnson & Johnson reports risks related to data breaches, ransomware attacks, "
-                     "and unauthorized access to sensitive patient and product data.",
+        "query": "Who are Johnson & Johnson's key executives mentioned in 2021 filings?",
+        "reference": "Johnson & Johnson's 2021 10-K listed Alex Gorsky as Chairman and CEO, "
+                     "and Joaquin Duato as Vice Chairman.",
+    },
+    {
+        "query": "How did Apple's supply chain risks change from 2019 to 2022?",
+        "reference": "Apple's supply chain risks intensified from 2019 to 2022 due to US-China tensions, "
+                     "COVID-related factory shutdowns, and semiconductor shortages.",
+    },
+    {
+        "query": "What cybersecurity risks did Microsoft disclose in its 2023 10-K?",
+        "reference": "Microsoft disclosed risks including nation-state cyberattacks, ransomware, "
+                     "vulnerabilities in cloud infrastructure, and insider threats.",
+    },
+    {
+        "query": "What was JPMorgan's net income in 2021 and what drove the increase?",
+        "reference": "JPMorgan's net income was $48.3 billion in 2021, driven by reserve releases "
+                     "as the economy recovered from COVID-19 impacts.",
+    },
+    {
+        "query": "What sector does ExxonMobil operate in and who are its main competitors?",
+        "reference": "ExxonMobil operates in the integrated oil and gas sector, competing with "
+                     "Chevron, Shell, BP, and TotalEnergies.",
+    },
+    {
+        "query": "What litigation risks did Johnson & Johnson face in 2022?",
+        "reference": "Johnson & Johnson faced significant litigation over talc-based products "
+                     "and opioid-related claims in its 2022 10-K filings.",
+    },
+    {
+        "query": "What were NVIDIA's key growth drivers in fiscal year 2023?",
+        "reference": "NVIDIA's growth in FY2023 was driven by data center GPU demand for AI "
+                     "training, particularly from hyperscale cloud providers.",
+    },
+    {
+        "query": "What risks did Tesla disclose related to its manufacturing operations in 2022?",
+        "reference": "Tesla disclosed risks including production ramp challenges at new Gigafactories, "
+                     "supply chain disruptions, and dependence on key suppliers.",
+    },
+    {
+        "query": "What were Goldman Sachs's main regulatory risks in 2021?",
+        "reference": "Goldman Sachs disclosed regulatory risks including capital requirements, "
+                     "1MDB settlement obligations, and evolving financial regulations globally.",
+    },
+    {
+        "query": "What were UnitedHealth Group's key business segments in 2022?",
+        "reference": "UnitedHealth Group operates through UnitedHealthcare (insurance) and "
+                     "Optum (health services, pharmacy, analytics) segments.",
+    },
+    {
+        "query": "How did Chevron describe its climate-related risks and opportunities in 2021?",
+        "reference": "Chevron described climate risks including carbon regulation, stranded asset risk, "
+                     "and opportunities in lower-carbon businesses like hydrogen and carbon capture.",
+    },
+    {
+        "query": "What were Boeing's main operational risks in 2020?",
+        "reference": "Boeing's 2020 10-K highlighted 737 MAX grounding impacts, COVID-19 demand "
+                     "reduction for commercial aircraft, and defense program cost overruns.",
+    },
+    {
+        "query": "What were Amazon's key risk factors related to competition in 2022?",
+        "reference": "Amazon cited competition from Walmart, Target, and specialized retailers in "
+                     "e-commerce, plus cloud competition from Microsoft Azure and Google Cloud.",
+    },
+    {
+        "query": "What were Intel's main challenges and risks described in its 2022 10-K?",
+        "reference": "Intel described risks including manufacturing execution challenges, loss of "
+                     "market share to AMD and ARM-based chips, and high capital expenditure needs.",
+    },
+    {
+        "query": "What were Disney's primary revenue sources and risks in 2021?",
+        "reference": "Disney's 2021 revenues came from streaming (Disney+), parks, and media networks, "
+                     "with COVID-19 park closures being a major risk factor.",
+    },
+    {
+        "query": "What inflation and interest rate risks did Bank of America describe in 2022?",
+        "reference": "Bank of America described risks from rapidly rising interest rates affecting "
+                     "loan demand and deposit behavior, alongside inflation impacting operating costs.",
     },
 ]
 

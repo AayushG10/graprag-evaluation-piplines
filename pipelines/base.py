@@ -3,8 +3,12 @@ from typing import Optional
 
 # Cost per 1M tokens (prompt, completion) — update as needed
 _PRICING: dict[str, tuple[float, float]] = {
-    # Gemini (Google)
-    "gemini-2.0-flash":                  (0.10, 0.40),
+    # Gemini (Google) — prices per 1M tokens (input, output)
+    "gemini-2.5-flash":                  (0.15, 0.60),   # current default
+    "gemini-2.5-pro":                    (1.25, 10.00),
+    "gemini-2.5-flash-lite":             (0.10, 0.40),
+    "gemini-2.0-flash":                  (0.10, 0.40),   # legacy
+    "gemini-2.0-flash-001":              (0.10, 0.40),
     "gemini-2.0-flash-lite":             (0.075, 0.30),
     "gemini-1.5-pro":                    (1.25, 5.00),
     "gemini-1.5-flash":                  (0.075, 0.30),
@@ -30,6 +34,7 @@ class PipelineResult:
     cost_usd: float = 0.0
     retrieved_chunks: list[str] = field(default_factory=list)
     graph_hops: int = 0
+    graph_data: Optional[dict] = None   # nodes + edges for visualization
     bertscore_f1: Optional[float] = None
     judge_pass: Optional[bool] = None
     judge_reason: Optional[str] = None

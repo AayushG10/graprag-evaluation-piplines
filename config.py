@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     # Gemini (Google)
     GEMINI_API_KEY: str = ""
     GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
-    GEMINI_MODEL: str = "gemini-2.0-flash"
-    GEMINI_JUDGE_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_JUDGE_MODEL: str = "gemini-2.5-flash"
 
     # OpenRouter (fallback)
     OPENROUTER_API_KEY: str = ""

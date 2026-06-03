@@ -22,26 +22,38 @@ from config import settings
 
 def extract_text_from_sgml(filepath: pathlib.Path) -> str:
     """
-    SEC full-submission.txt files are SGML wrappers containing embedded HTML.
-    We extract the first <TEXT>...</TEXT> block that belongs to the 10-K document,
-    then strip HTML tags to get clean plain text.
+    SEC full-submission.txt files are SGML wrappers containing multiple
+    embedded HTML/text documents. We extract ALL <TEXT>...</TEXT> blocks
+    (main 10-K body + all exhibits) to maximise token coverage.
     """
     raw = filepath.read_text(encoding="utf-8", errors="ignore")
 
-    # Pull the HTML content out of the SGML <TEXT> block
-    text_match = re.search(r"<TEXT>(.*?)</TEXT>", raw, re.DOTALL | re.IGNORECASE)
-    if text_match:
-        html_content = text_match.group(1)
-    else:
-        html_content = raw  # fallback: parse whole file
+    # Extract ALL <TEXT>...</TEXT> blocks (not just the first)
+    text_blocks = re.findall(r"<TEXT>(.*?)</TEXT>", raw, re.DOTALL | re.IGNORECASE)
 
-    soup = BeautifulSoup(html_content, "lxml")
-    for tag in soup(["script", "style", "head", "meta", "link", "ix:header"]):
-        tag.decompose()
+    if not text_blocks:
+        text_blocks = [raw]  # fallback: parse whole file
 
-    text = soup.get_text(separator=" ")
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+    all_text_parts = []
+    for block in text_blocks:
+        # Skip pure XBRL/XML blocks (they contain no readable text)
+        if block.strip().startswith("<?xml") or "<xbrl" in block[:200].lower():
+            continue
+        # Skip binary/encoded blocks
+        if "begin 644" in block[:100]:
+            continue
+
+        soup = BeautifulSoup(block, "lxml")
+        for tag in soup(["script", "style", "head", "meta", "link",
+                          "ix:header", "xbrli:xbrl", "xbrl"]):
+            tag.decompose()
+
+        text = soup.get_text(separator=" ")
+        text = re.sub(r"\s+", " ", text).strip()
+        if len(text) > 200:  # skip near-empty blocks
+            all_text_parts.append(text)
+
+    return " ".join(all_text_parts)
 
 
 def find_filing_files(raw_dir: str) -> list[tuple[pathlib.Path, str, str]]:
@@ -170,9 +182,13 @@ def process_all_filings() -> list[dict]:
             except Exception as exc:
                 print(f"  ⚠ Skipped {filepath}: {exc}")
 
-    total_tokens = sum(len(c["text"].split()) * 4 // 3 for c in all_chunks)
+    total_words = sum(len(c["text"].split()) for c in all_chunks)
+    total_tokens = total_words * 4 // 3   # ~1.33 tokens per word
     print(f"\n✅ {len(all_chunks):,} chunks written to {settings.CHUNKS_PATH}")
+    print(f"   Total words:      {total_words:,}")
     print(f"   Estimated tokens: {total_tokens:,}")
+    print(f"   Filings parsed:   {len(filings)}")
+    print(f"   Avg chunks/filing: {len(all_chunks)//max(len(filings),1)}")
     return all_chunks
 
 

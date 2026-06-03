@@ -24,20 +24,41 @@ from config import settings
 
 def get_connection() -> tg.TigerGraphConnection:
     if settings.USE_SAVANNA:
-        # First get the token, then reconnect with it in the constructor
-        _tmp = tg.TigerGraphConnection(
-            host=f"https://{settings.TIGERGRAPH_HOST}",
-            graphname=settings.TIGERGRAPH_GRAPH_NAME,
-            gsqlSecret=settings.TIGERGRAPH_SECRET,
+        host = f"https://{settings.TIGERGRAPH_HOST}"
+
+        # Option A: pre-fetched token already in .env (preferred)
+        if settings.TIGERGRAPH_TOKEN:
+            conn = tg.TigerGraphConnection(
+                host=host,
+                graphname=settings.TIGERGRAPH_GRAPH_NAME,
+                apiToken=settings.TIGERGRAPH_TOKEN,
+            )
+            print(f"✅ Connected to TigerGraph Savanna: {settings.TIGERGRAPH_HOST} (token auth)")
+            return conn
+
+        # Option B: fetch token from secret via GSQL REST endpoint
+        if not settings.TIGERGRAPH_SECRET:
+            raise RuntimeError(
+                "TigerGraph Savanna auth failed: set TIGERGRAPH_TOKEN or TIGERGRAPH_SECRET in .env.\n"
+                "To get a fresh token, go to: TigerGraph Savanna → Admin Portal → My Profile → Secrets\n"
+                "Then run: curl -X POST https://<host>/gsql/v1/tokens -H 'Content-Type: application/json' "
+                "-d '{\"secret\":\"YOUR_SECRET\"}'"
+            )
+        import requests as _req
+        resp = _req.post(
+            f"{host}/gsql/v1/tokens",
+            json={"secret": settings.TIGERGRAPH_SECRET},
+            timeout=15,
         )
-        result = _tmp.getToken(settings.TIGERGRAPH_SECRET)
-        token = result[0] if isinstance(result, tuple) else result
+        resp.raise_for_status()
+        token = resp.json()["token"]
         conn = tg.TigerGraphConnection(
-            host=f"https://{settings.TIGERGRAPH_HOST}",
+            host=host,
             graphname=settings.TIGERGRAPH_GRAPH_NAME,
-            gsqlSecret=settings.TIGERGRAPH_SECRET,
             apiToken=token,
         )
+        print(f"✅ Connected to TigerGraph Savanna: {settings.TIGERGRAPH_HOST} (secret auth)")
+        return conn
     else:
         conn = tg.TigerGraphConnection(
             host=f"http://{settings.TIGERGRAPH_HOST}",
@@ -45,8 +66,8 @@ def get_connection() -> tg.TigerGraphConnection:
             username=settings.TIGERGRAPH_USERNAME,
             password=settings.TIGERGRAPH_PASSWORD,
         )
-    print(f"✅ Connected to TigerGraph: {settings.TIGERGRAPH_HOST}")
-    return conn
+        print(f"✅ Connected to TigerGraph CE: {settings.TIGERGRAPH_HOST}")
+        return conn
 
 
 # ── Schema creation ───────────────────────────────────────────────────────────
@@ -120,15 +141,31 @@ def create_schema(conn: tg.TigerGraphConnection) -> None:
 
 # Company ticker → sector mapping
 TICKER_SECTOR = {
+    # Technology (10)
     "AAPL": "Technology", "MSFT": "Technology", "GOOGL": "Technology",
     "AMZN": "Technology", "META": "Technology",
+    "NVDA": "Technology", "TSLA": "Technology", "INTC": "Technology",
+    "AMD": "Technology", "ORCL": "Technology",
+    # Finance (10)
     "JPM": "Finance", "BAC": "Finance", "WFC": "Finance",
     "GS": "Finance", "MS": "Finance",
-    "XOM": "Energy", "CVX": "Energy", "COP": "Energy",
+    "C": "Finance", "AXP": "Finance", "BLK": "Finance",
+    "SCHW": "Finance", "USB": "Finance",
+    # Healthcare (8)
     "JNJ": "Healthcare", "PFE": "Healthcare", "MRK": "Healthcare",
+    "ABBV": "Healthcare", "UNH": "Healthcare", "CVS": "Healthcare",
+    "BMY": "Healthcare", "AMGN": "Healthcare",
+    # Energy (7)
+    "XOM": "Energy", "CVX": "Energy", "COP": "Energy",
+    "SLB": "Energy", "PSX": "Energy", "VLO": "Energy", "MPC": "Energy",
+    # Retail & Consumer (7)
     "WMT": "Retail", "TGT": "Retail", "HD": "Retail", "COST": "Retail",
+    "MCD": "Retail", "SBUX": "Retail", "NKE": "Retail",
+    # Industrial (5)
     "CAT": "Industrial", "HON": "Industrial", "GE": "Industrial",
-    "T": "Telecom", "VZ": "Telecom",
+    "BA": "Industrial", "MMM": "Industrial",
+    # Telecom & Media (3)
+    "T": "Telecom", "VZ": "Telecom", "DIS": "Telecom",
 }
 
 # Regex patterns for executive titles in Item 10

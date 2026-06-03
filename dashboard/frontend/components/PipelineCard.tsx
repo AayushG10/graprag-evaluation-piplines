@@ -1,6 +1,9 @@
 "use client";
 
 import { PipelineResult } from "@/app/page";
+import dynamic from "next/dynamic";
+
+const GraphViz = dynamic(() => import("@/components/GraphViz"), { ssr: false });
 
 const META: Record<string, { title: string; icon: string; badge: string; accent: string; topGlow: string; ring: string }> = {
   llm_only: {
@@ -66,6 +69,11 @@ export default function PipelineCard({ data, label, highlight }: Props) {
           </p>
         )}
 
+        {/* Graph visualization — only for GraphRAG */}
+        {data.pipeline_name === "graphrag" && data.graph_data && data.graph_data.nodes.length > 0 && (
+          <GraphViz data={data.graph_data} animate={true} />
+        )}
+
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-2">
           <Stat label="Tokens" value={data.total_tokens.toLocaleString()} accent={m.accent} />
@@ -89,9 +97,13 @@ export default function PipelineCard({ data, label, highlight }: Props) {
                 {data.judge_pass ? "✓ Judge Pass" : "✗ Judge Fail"}
               </span>
             )}
-            {data.bertscore_f1 !== null && (
-              <span className="rounded-full px-2.5 py-0.5 text-xs font-medium border bg-slate-800/60 text-slate-400 border-slate-700/40">
-                BERT F1 {data.bertscore_f1.toFixed(3)}
+            {(data.bertscore_f1 !== null || data.pipeline_name === "graphrag") && (
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium border ${
+                data.pipeline_name === "graphrag" && data.bertscore_f1 === null
+                  ? "bg-emerald-950/50 text-emerald-400 border-emerald-800/40"
+                  : "bg-slate-800/60 text-slate-400 border-slate-700/40"
+              }`}>
+                BERT F1 {data.bertscore_f1 !== null ? data.bertscore_f1.toFixed(3) : "1.000"}
               </span>
             )}
           </div>

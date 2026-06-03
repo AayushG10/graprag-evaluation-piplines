@@ -1,9 +1,24 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import QueryInput from "@/components/QueryInput";
 import PipelineCard from "@/components/PipelineCard";
 import MetricsTable from "@/components/MetricsTable";
+import TokenSavings from "@/components/TokenSavings";
+
+export interface GraphNode {
+  id: string;
+  label: string;
+  type: "company" | "document" | "risk" | "executive" | "sector";
+  hop: number;
+}
+
+export interface GraphEdge {
+  source: string;
+  target: string;
+  label: string;
+  hop: number;
+}
 
 export interface PipelineResult {
   pipeline_name: string;
@@ -15,6 +30,7 @@ export interface PipelineResult {
   cost_usd: number;
   retrieved_chunks: string[];
   graph_hops: number;
+  graph_data: { nodes: GraphNode[]; edges: GraphEdge[] } | null;
   bertscore_f1: number | null;
   judge_pass: boolean | null;
   judge_reason: string | null;
@@ -31,11 +47,118 @@ export interface BenchmarkResult {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+// ── Animated loading component ────────────────────────────────────────────────
+const PIPELINE_STEPS: Record<string, { icon: string; color: string; steps: string[] }> = {
+  "LLM Only": {
+    icon: "🧠", color: "purple",
+    steps: ["Sending query to LLM…", "Generating response…", "Counting tokens…"],
+  },
+  "Basic RAG": {
+    icon: "🔍", color: "blue",
+    steps: ["Embedding query…", "Searching FAISS index (159K chunks)…", "Retrieving top-8 chunks…", "Synthesizing answer…"],
+  },
+  "GraphRAG": {
+    icon: "🕸️", color: "emerald",
+    steps: ["Extracting entities from query…", "Hop 1: fetching documents…", "Hop 2: traversing risks & executives…", "Hop 3: sector peer comparison…", "Synthesizing from graph context…"],
+  },
+};
+
+function PipelineLoadingSkeleton({ name, delayMs }: { name: string; delayMs: number }) {
+  const [stepIdx, setStepIdx] = useState(0);
+  const cfg = PIPELINE_STEPS[name];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStepIdx((i) => (i + 1) % cfg.steps.length);
+    }, 1400);
+    return () => clearInterval(interval);
+  }, [cfg.steps.length]);
+
+  const borderColor = cfg.color === "purple" ? "border-purple-800/40" : cfg.color === "blue" ? "border-blue-800/40" : "border-emerald-700/40";
+  const textColor   = cfg.color === "purple" ? "text-purple-400" : cfg.color === "blue" ? "text-blue-400" : "text-emerald-400";
+  const dotColor    = cfg.color === "purple" ? "bg-purple-400" : cfg.color === "blue" ? "bg-blue-400" : "bg-emerald-400";
+
+  return (
+    <div className={`rounded-2xl border bg-slate-900/60 p-6 space-y-4 ${borderColor}`} style={{ animationDelay: `${delayMs}ms` }}>
+      <div className="flex items-center gap-2">
+        <span className="text-lg">{cfg.icon}</span>
+        <span className={`text-xs font-bold ${textColor}`}>{name}</span>
+        <div className={`ml-auto w-2 h-2 rounded-full animate-pulse ${dotColor}`} />
+      </div>
+      <div className="space-y-2">
+        <div className="shimmer h-3 w-full rounded" />
+        <div className="shimmer h-3 w-5/6 rounded" />
+        <div className="shimmer h-3 w-4/5 rounded" />
+        <div className="shimmer h-3 w-3/5 rounded" />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="shimmer h-12 rounded-lg" />
+        <div className="shimmer h-12 rounded-lg" />
+      </div>
+      <div className={`flex items-center gap-2 text-[10px] ${textColor} font-mono`}>
+        <svg className="w-3 h-3 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+        </svg>
+        <span className="truncate">{cfg.steps[stepIdx]}</span>
+      </div>
+    </div>
+  );
+}
+
+function LoadingState() {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-center gap-3">
+        <div className="flex gap-1">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce"
+              style={{ animationDelay: `${i * 150}ms` }} />
+          ))}
+        </div>
+        <p className="text-sm text-slate-400 font-medium">
+          Running all 3 pipelines in parallel
+          <span className="text-slate-600 font-mono ml-2 text-xs">{elapsed}s</span>
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <PipelineLoadingSkeleton name="LLM Only"  delayMs={0} />
+        <PipelineLoadingSkeleton name="Basic RAG" delayMs={100} />
+        <PipelineLoadingSkeleton name="GraphRAG"  delayMs={200} />
+      </div>
+    </div>
+  );
+}
+
+interface LiveStats {
+  chunks: number;
+  companies: number;
+  estimated_tokens: number;
+  faiss_index_exists: boolean;
+  model: string;
+}
+
 export default function Home() {
   const [result, setResult] = useState<BenchmarkResult | null>(null);
+  const [sessionHistory, setSessionHistory] = useState<BenchmarkResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [liveStats, setLiveStats] = useState<LiveStats | null>(null);
   const demoRef = useRef<HTMLDivElement>(null);
+
+  // Fetch live backend stats on mount
+  useEffect(() => {
+    fetch(`${API_URL}/api/stats`)
+      .then((r) => r.json())
+      .then((data) => setLiveStats(data))
+      .catch(() => {}); // silently ignore if backend not running
+  }, []);
 
   function scrollToDemo() {
     demoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -55,7 +178,9 @@ export default function Home() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.detail ?? `HTTP ${res.status}`);
       }
-      setResult(await res.json());
+      const data = await res.json();
+      setResult(data);
+      setSessionHistory((prev) => [...prev, data]);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -117,8 +242,8 @@ export default function Home() {
               <span className="gradient-text">proves itself live.</span>
             </h1>
             <p className="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-              Ask any question about SEC 10-K filings. Watch three AI pipelines answer it
-              simultaneously — and see why GraphRAG wins by up to{" "}
+              Ask any question across <span className="text-cyan-400 font-semibold">110M tokens</span> of real SEC 10-K filings from 49 S&amp;P 500 companies.
+              Watch three AI pipelines answer it simultaneously — and see why GraphRAG wins by up to{" "}
               <span className="text-emerald-400 font-bold">88% fewer tokens</span>.
             </p>
           </div>
@@ -143,10 +268,10 @@ export default function Home() {
           {/* Stats grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 max-w-3xl mx-auto">
             {[
-              { n: "88%", label: "Token Reduction", sub: "GraphRAG vs Basic RAG" },
-              { n: "25", label: "SEC Filings", sub: "5 companies × 5 years" },
-              { n: "2-hop", label: "Graph Depth", sub: "Company → Doc → Risk" },
-              { n: "4,400+", label: "Text Chunks", sub: "Indexed in FAISS" },
+              { n: "88%",   label: "Token Reduction", sub: "GraphRAG vs Basic RAG" },
+              { n: liveStats ? `${liveStats.companies}` : "49", label: "S&P 500 Companies", sub: "7 sectors, 5 years" },
+              { n: "3-hop", label: "Max Graph Depth", sub: "Company→Doc→Risk→Peer" },
+              { n: liveStats ? `${(liveStats.chunks / 1000).toFixed(0)}K` : "159K+", label: "Text Chunks", sub: liveStats ? `${(liveStats.estimated_tokens / 1e6).toFixed(0)}M tokens` : "110M tokens indexed" },
             ].map((s) => (
               <div key={s.label} className="rounded-2xl border border-slate-800 bg-slate-900/40 backdrop-blur-sm px-4 py-4 text-center hover:border-slate-700 transition-colors">
                 <p className="text-2xl font-black gradient-text">{s.n}</p>
@@ -155,6 +280,12 @@ export default function Home() {
               </div>
             ))}
           </div>
+          {liveStats?.faiss_index_exists && (
+            <div className="flex items-center justify-center gap-2 pt-3 text-xs text-emerald-400/70">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live — FAISS index loaded · {liveStats.model}
+            </div>
+          )}
         </div>
 
         {/* Scroll indicator */}
@@ -188,7 +319,7 @@ export default function Home() {
               {
                 num: "02", name: "Basic RAG", color: "blue",
                 icon: "🔍",
-                desc: "Top-5 chunks retrieved from 4,400+ SEC filing passages via FAISS vector search, then fed as context to the LLM.",
+                desc: "Top-5 chunks retrieved from 159,000+ SEC filing passages via FAISS vector search, then fed as context to the LLM.",
                 pros: ["Grounded in real filings", "Semantic search"],
                 cons: ["Large context window", "High token cost"],
               },
@@ -297,15 +428,15 @@ export default function Home() {
             <p className="text-xs font-bold uppercase tracking-widest text-cyan-500">Dataset</p>
             <h2 className="text-4xl sm:text-5xl font-black text-white">Real filings. Real answers.</h2>
             <p className="text-slate-400 max-w-xl mx-auto">
-              25 SEC 10-K annual reports downloaded directly from EDGAR, chunked, embedded, and loaded into TigerGraph — no synthetic data, no shortcuts.
+              245 SEC 10-K annual reports downloaded directly from EDGAR, chunked, embedded, and loaded into TigerGraph — 110M tokens, no synthetic data, no shortcuts.
             </p>
           </div>
 
           {/* Stats row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
             {[
-              { value: "25",     label: "10-K Filings",      sub: "5 companies × 5 years",         color: "text-cyan-400" },
-              { value: "4,400+", label: "Text Chunks",       sub: "512 tokens, 64 overlap",         color: "text-blue-400" },
+              { value: "245",    label: "10-K Filings",      sub: "49 companies × 5 years",        color: "text-cyan-400" },
+              { value: "159K+",  label: "Text Chunks",       sub: "110M tokens indexed",            color: "text-blue-400" },
               { value: "7",      label: "Vertex Types",      sub: "Company, Doc, Risk, Exec…",      color: "text-emerald-400" },
               { value: "6",      label: "Edge Types",        sub: "Multi-hop graph traversal",      color: "text-violet-400" },
             ].map(s => (
@@ -480,7 +611,7 @@ export default function Home() {
             <p className="text-xs font-bold uppercase tracking-widest text-emerald-500">Live Benchmark</p>
             <h2 className="text-4xl font-black text-white">Enter your query</h2>
             <p className="text-slate-400 max-w-xl mx-auto text-sm">
-              Type any financial question about Apple, Microsoft, JPMorgan, ExxonMobil, or Johnson &amp; Johnson from 2019–2023.
+              Type any financial question about 49 S&amp;P 500 companies including Apple, Microsoft, JPMorgan, NVIDIA, Tesla, Goldman Sachs and more — from 2019–2023.
               All three pipelines run in parallel.
             </p>
           </div>
@@ -516,52 +647,15 @@ export default function Home() {
           )}
 
           {/* Loading skeletons */}
-          {loading && (
-            <div className="space-y-4">
-              <p className="text-center text-sm text-slate-500 animate-pulse">Running all 3 pipelines in parallel…</p>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {["LLM Only", "Basic RAG", "GraphRAG"].map((name) => (
-                  <div key={name} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="shimmer h-5 w-24 rounded-full" />
-                      <div className="shimmer h-4 w-16 rounded" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="shimmer h-3 w-full rounded" />
-                      <div className="shimmer h-3 w-5/6 rounded" />
-                      <div className="shimmer h-3 w-4/5 rounded" />
-                      <div className="shimmer h-3 w-3/5 rounded" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 pt-2">
-                      <div className="shimmer h-12 rounded-lg" />
-                      <div className="shimmer h-12 rounded-lg" />
-                    </div>
-                    <p className="text-xs text-slate-600 text-center">{name} running…</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {loading && <LoadingState />}
 
           {/* Results */}
           {result && !loading && (
             <div className="space-y-6">
-              {/* Token reduction banner */}
-              {result.token_reduction_pct > 0 && (
-                <div className="fade-up max-w-3xl mx-auto rounded-2xl border border-emerald-700/40 bg-gradient-to-r from-emerald-950/60 to-cyan-950/40 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-5">
-                  <div className="flex items-baseline gap-2 shrink-0">
-                    <span className="text-5xl font-black gradient-text">{result.token_reduction_pct}%</span>
-                    <span className="text-emerald-400 font-bold text-lg">saved</span>
-                  </div>
-                  <div className="border-l border-emerald-800/40 pl-5 space-y-1">
-                    <p className="text-sm font-semibold text-white">GraphRAG is dramatically more efficient</p>
-                    <p className="text-xs text-slate-400">
-                      Used <span className="text-emerald-400 font-bold">{result.pipeline3.total_tokens.toLocaleString()} tokens</span> vs Basic RAG&apos;s{" "}
-                      <span className="text-slate-300 font-semibold">{result.pipeline2.total_tokens.toLocaleString()}</span> — same answer quality at a fraction of the cost
-                    </p>
-                  </div>
-                </div>
-              )}
+              {/* Token Savings Dashboard */}
+              <div className="fade-up">
+                <TokenSavings current={result} history={sessionHistory} />
+              </div>
 
               {/* Query echo */}
               <div className="fade-up max-w-3xl mx-auto rounded-xl border border-slate-800 bg-slate-900/40 px-5 py-3 flex items-center gap-3">
