@@ -10,7 +10,7 @@
 ![GraphRAG Finance — Full System Architecture](architecture.png)
 
 > **Three regions:** ① Data Ingestion (orange) — ② Backend Pipelines (blue) — ③ Frontend (purple)  
-> **Token savings:** GraphRAG uses ~510 tokens vs ~8,536 for Basic RAG = **94% reduction**
+> **Token savings:** GraphRAG averages ~1,690 tokens vs ~8,291 for Basic RAG = **79% reduction** (and the highest BERTScore of the three)
 
 ---
 
@@ -57,8 +57,8 @@ graph TB
 
     subgraph DataStores["Data Stores"]
         GEMINI["☁️ Gemini 2.5 Flash\nGoogle AI API"]
-        FAISS["💾 FAISS Index\n234 MB · 159,789 vectors"]
-        TG["🕸️ TigerGraph Savanna\n49 companies · 245 filings\n~900K vertices + edges"]
+        FAISS["💾 FAISS Index\n437 MB · 298,221 vectors"]
+        TG["🕸️ TigerGraph Savanna\n49 companies · 245 filings\n~1,650 vertices + ~9,800 edges"]
     end
 
     User -->|"HTTP"| Frontend
@@ -96,10 +96,10 @@ flowchart LR
     subgraph P2["🔍 Pipeline 2 — Basic RAG"]
         direction TB
         E2["Encode query\nall-MiniLM-L6-v2\n384-dim vector"]
-        F2["FAISS search\n159,789 vectors\nTop-5 chunks"]
+        F2["FAISS search\n298,221 vectors\nTop-5 chunks"]
         C2["Build context\n~2,560 tokens\nraw 10-K prose"]
         G2["Gemini 2.5 Flash"]
-        O2["Answer\n~8,536 tokens total"]
+        O2["Answer\n~8,291 tokens avg"]
         E2 --> F2 --> C2 --> G2 --> O2
     end
 
@@ -109,7 +109,7 @@ flowchart LR
         HOP["TigerGraph\n3-hop traversal"]
         CTX["Build context\n~400 tokens\nstructured facts"]
         G3["Gemini 2.5 Flash"]
-        O3["Answer + graph_data\n~510 tokens total"]
+        O3["Answer + graph_data\n~1,690 tokens avg"]
         NER --> HOP --> CTX --> G3 --> O3
     end
 
@@ -145,8 +145,8 @@ flowchart TD
         HTML["HTML → plain text\nBeautifulSoup4 + lxml\nStrip tags/tables"]
         CHUNK["Chunker\n512 tokens · 64 overlap\nsliding window"]
         EMBED["Encode chunks\nall-MiniLM-L6-v2\n384-dim · local CPU"]
-        FAISS_BUILD["FAISS IndexFlatIP\nInner-product similarity\n234 MB index file"]
-        JSONL["chunks.jsonl\n159,789 records\n{text, ticker, year, chunk_id}"]
+        FAISS_BUILD["FAISS IndexFlatIP\nInner-product similarity\n437 MB index file"]
+        JSONL["chunks.jsonl\n298,221 records\n{text, ticker, year, chunk_id}"]
         HTML --> CHUNK --> EMBED --> FAISS_BUILD
         CHUNK --> JSONL
     end
@@ -155,18 +155,18 @@ flowchart TD
 
     subgraph GRAPH["Step 3 — python -m ingestion.build_graph"]
         CONN["Connect TigerGraph\nSavanna (JWT token)\nor CE (username/pass)"]
-        SCHEMA["Create schema\n7 vertex types\n6 edge types\nGSQL DDL"]
+        SCHEMA["Create schema\n6 vertex types\n6 edge types\nGSQL DDL"]
         NER["spaCy NER\nen_core_web_sm\nExtract ORG, PERSON"]
         RISK_RE["Regex patterns\nItem 1A: Risk Factors\nSection extraction"]
         UPSERT["pyTigerGraph\nupsertVertex + upsertEdge\nBatch 100 records\nIdempotent"]
-        RESULT["~900K vertices\n+ edges loaded\n~60–90 min"]
+        RESULT["~1,650 vertices +\n~9,800 edges loaded\n~60–90 min"]
         CONN --> SCHEMA --> NER & RISK_RE --> UPSERT --> RESULT
     end
 
     PARSE --> GRAPH
 
-    OUT1[("💾 data/processed/\nfaiss.index 234MB\nchunks.jsonl 159,789 lines")]
-    OUT2[("🕸️ TigerGraph Savanna\nFinanceGraph\n~900K vertices+edges")]
+    OUT1[("💾 data/processed/\nfaiss.index 437MB\nchunks.jsonl 298,221 lines")]
+    OUT2[("🕸️ TigerGraph Savanna\nFinanceGraph\n~1,650 vertices + ~9,800 edges")]
 
     FAISS_BUILD --> OUT1
     JSONL --> OUT1
@@ -413,7 +413,7 @@ graph TD
     APP["app/layout.tsx\nRootLayout\nInter font · dark bg"]
 
     subgraph HOME["app/page.tsx — Main Dashboard"]
-        HERO["Hero Section\nGradient headline\nStats: 88% · 49 · 3-hop · 160K"]
+        HERO["Hero Section\nGradient headline\nLive stats from /api: reduction% · companies · 3-hop · chunks"]
         ARCH["Architecture Section\nThree pipeline cards\nTigerGraph schema diagram"]
         DATA["Dataset Section\n49 company cards\nsector badges · filing counts"]
         DEMO["Demo Section\n#try-demo anchor"]
@@ -429,8 +429,8 @@ graph TD
     end
 
     subgraph BENCH["app/benchmark/page.tsx — Benchmark Runner"]
-        BH["Stats header\n110M tokens · 49 cos · 245 filings\n159,789 chunks · 7 sectors"]
-        BS2["Summary cards\n88% reduction · 20/20 judge\n0.862 BERTScore"]
+        BH["Stats header\n205M tokens · 49 cos · 245 filings\n298,221 chunks · 7 sectors"]
+        BS2["Summary cards (live from /api/benchmark)\n79% reduction · judge 20/13/3\n0.847 GraphRAG BERTScore"]
         BLR["Live Runner Banner\n⚡ Run All 20 Live\nprogress bar"]
         BTABLE["20-row results table\n▶ per-row play button\nlive highlight + emerald dot"]
     end
@@ -507,7 +507,7 @@ xychart-beta
 
 ```mermaid
 flowchart LR
-    subgraph LLM_ONLY["🧠 LLM Only — ~2,410 tokens"]
+    subgraph LLM_ONLY["🧠 LLM Only — ~2,383 tokens avg"]
         L1["System prompt: ~80 tokens"]
         L2["User query: ~20 tokens"]
         L3["Answer: ~400 tokens"]
@@ -515,7 +515,7 @@ flowchart LR
         L2 --> L3
     end
 
-    subgraph BASIC_RAG["🔍 Basic RAG — ~8,536 tokens"]
+    subgraph BASIC_RAG["🔍 Basic RAG — ~8,291 tokens avg"]
         R1["System prompt: ~80 tokens"]
         R2["User query: ~20 tokens"]
         R3["5 chunks × 512 tokens\n= ~2,560 tokens context"]
@@ -523,7 +523,7 @@ flowchart LR
         R1 & R2 & R3 --> R4
     end
 
-    subgraph GRAPHRAG["🕸️ GraphRAG — ~510 tokens"]
+    subgraph GRAPHRAG["🕸️ GraphRAG — ~1,690 tokens avg"]
         G1["System prompt: ~80 tokens"]
         G2["User query: ~20 tokens"]
         G3["Graph context: ~300 tokens\n(structured facts, not raw prose)"]
@@ -531,7 +531,7 @@ flowchart LR
         G1 & G2 & G3 --> G4
     end
 
-    SAVING["💰 Savings vs Basic RAG\n8,026 tokens = 94%\n$0.00128 per query"]
+    SAVING["💰 Savings vs Basic RAG\n~6,600 tokens = 79%\n~$0.001 per query"]
     BASIC_RAG -->|"GraphRAG replaces this"| SAVING
     GRAPHRAG -->|"Costs this instead"| SAVING
 ```
@@ -615,26 +615,26 @@ mindmap
       49 S&P 500 companies
       245 10-K filings
       2019–2023
-      159,789 chunks
-      110M tokens
-      234MB FAISS index
+      298,221 chunks
+      205M tokens
+      437MB FAISS index
     Graph
       TigerGraph Savanna
-      7 vertex types
+      6 vertex types
       6 edge types
-      ~900K vertices+edges
+      ~1,650 vertices + ~9,800 edges
       3-hop max traversal
     Pipelines
       LLM Only
         Zero context
-        ~2,410 tokens
+        ~2,383 tokens avg
       Basic RAG
         FAISS top-5
-        ~8,536 tokens
+        ~8,291 tokens avg
       GraphRAG
         Multi-hop traversal
-        ~510 tokens
-        94% savings
+        ~1,690 tokens avg
+        79% savings
     Evaluation
       BERTScore F1
         roberta-large
@@ -642,7 +642,7 @@ mindmap
       LLM Judge
         Gemini 2.5 Flash
         PASS/FAIL + reason
-        20/20 GraphRAG pass
+        judge: 20/13/3 (LLM/RAG/Graph)
     Frontend
       Next.js 16
       D3.js GraphViz

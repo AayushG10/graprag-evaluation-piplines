@@ -182,14 +182,22 @@ def _query_graph(conn: tg.TigerGraphConnection, parsed: dict) -> tuple[dict, dic
             for edge in risk_edges:
                 risk_id = edge.get("to_id", "")
                 label = risk_id.replace("_", " ").title()
+                # The Risk vertex is shared across all companies (keyed by
+                # keyword), so its own description isn't specific to this
+                # company. The real, per-document description lives on the
+                # edge itself — use that instead.
+                edge_attrs = edge.get("attributes", {})
+                description = edge_attrs.get("description") or label
+                category = ""
                 try:
                     rv = conn.getVerticesById("Risk", risk_id)
-                    category = rv[0]["attributes"].get("category", "") if rv else ""
+                    if rv:
+                        category = rv[0]["attributes"].get("category", "")
                 except Exception:
-                    category = ""
+                    pass
                 facts["risks"].append({
                     "id": risk_id,
-                    "description": label,
+                    "description": description,
                     "category": category,
                 })
                 _node(risk_id, label, "risk", 2)

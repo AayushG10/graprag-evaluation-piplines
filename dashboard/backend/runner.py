@@ -105,19 +105,13 @@ async def run_all(query: str, reference: Optional[str] = None) -> BenchmarkRespo
         loop.run_in_executor(_executor, _safe_run, _graphrag,  query),
     )
 
-    # Determine reference for scoring:
-    # - Explicit reference from user takes priority
-    # - Otherwise use GraphRAG's answer as the grounded reference for BERTScore
-    #   (GraphRAG pulls from structured graph data, so it's the most grounded answer)
-    graphrag_as_ref = p3.answer if not p3.error and p3.answer.strip() else None
-    ref_for_p1_p2 = reference or graphrag_as_ref
-    ref_for_p3 = reference  # GraphRAG scores against explicit reference only (or no-ref judge)
-
-    # Run evaluation in parallel
+    # Score all three pipelines against the same reference (or lack of one) —
+    # never against another pipeline's own answer, which would let that
+    # pipeline grade its own homework.
     p1, p2, p3 = await asyncio.gather(
-        loop.run_in_executor(_executor, _score_pipeline, p1, query, ref_for_p1_p2),
-        loop.run_in_executor(_executor, _score_pipeline, p2, query, ref_for_p1_p2),
-        loop.run_in_executor(_executor, _score_pipeline, p3, query, ref_for_p3),
+        loop.run_in_executor(_executor, _score_pipeline, p1, query, reference),
+        loop.run_in_executor(_executor, _score_pipeline, p2, query, reference),
+        loop.run_in_executor(_executor, _score_pipeline, p3, query, reference),
     )
 
     # Token reduction: graphrag vs basic_rag

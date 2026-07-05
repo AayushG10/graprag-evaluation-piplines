@@ -1,6 +1,6 @@
 # GraphRAG Finance Benchmark
 
-> **TigerGraph GraphRAG Inference Hackathon** — Proving that knowledge-graph-powered retrieval dramatically reduces LLM token consumption while maintaining answer quality on real SEC 10-K financial filings.
+> **TigerGraph GraphRAG Inference Hackathon** — Measuring how knowledge-graph-powered retrieval dramatically reduces LLM token consumption (and where it trades off answer completeness) on real SEC 10-K financial filings.
 
 ---
 
@@ -13,16 +13,18 @@
 ![Three pipelines — LLM Only, Basic RAG, GraphRAG with TigerGraph schema](./untitled%20folder/first_route/pipline_pages.png)
 
 ### Dataset — Real Filings
-![245 10-K filings, 159K+ chunks, 7 vertex types, 6 edge types](./untitled%20folder/first_route/dataset_page.png)
+![245 10-K filings, 298K+ chunks, 6 vertex types, 6 edge types](./untitled%20folder/first_route/dataset_page.png)
 
 ### Query Input — 4 Category Tabs
 ![Query input with Single Company, Cross-Company, Sector, Trend chips](./untitled%20folder/first_route/enter_query.png)
 
 ### Token Savings Dashboard
-![Token savings: LLM Only 2,410 · Basic RAG 8,536 · GraphRAG 510 — 94% savings](./untitled%20folder/first_route/result_.png)
+![Token savings: GraphRAG uses far fewer tokens than Basic RAG per query](./untitled%20folder/first_route/result_.png)
 
-### Benchmark Results — 20 Live Questions
-![Benchmark page: 88% avg token reduction, 20/20 GraphRAG judge pass, 0.862 BERTScore](./untitled%20folder/benchmark/benchmark.png)
+### Benchmark Results — 20 Questions
+![Benchmark page: ~79% avg token reduction, per-pipeline judge and BERTScore results](./untitled%20folder/benchmark/benchmark.png)
+
+> Screenshots are illustrative; the live dashboard reads current numbers from `/api/benchmark` and `/api/stats`.
 
 ---
 
@@ -32,24 +34,26 @@ This project runs the same financial question through **three AI pipelines simul
 
 | Pipeline | Strategy | Typical Tokens | vs GraphRAG |
 |---|---|---|---|
-| **LLM Only** | Raw question → LLM, zero context | ~2,410 | 4.7× more |
-| **Basic RAG** | FAISS vector search → top-5 chunks → LLM | ~8,536 | 16.7× more |
-| **GraphRAG** | TigerGraph multi-hop traversal → focused facts → LLM | ~510 | baseline |
+| **LLM Only** | Raw question → LLM, zero context | ~2,383 | 1.4× more |
+| **Basic RAG** | FAISS vector search → top-5 chunks → LLM | ~8,291 | 4.9× more |
+| **GraphRAG** | TigerGraph multi-hop traversal → focused facts → LLM | ~1,690 | baseline |
 
-**Result: GraphRAG uses ~94% fewer tokens than Basic RAG** while scoring higher on both BERTScore F1 and LLM-Judge — proven live with real SEC 10-K data.
+**Result: GraphRAG uses ~79% fewer tokens than Basic RAG** and has the highest average BERTScore F1 (closest semantic match to the reference answers) — proven with a real offline benchmark on SEC 10-K data. The tradeoff: its compact, graph-derived answers are the most token-efficient but least comprehensive, so the strict reference-matching LLM judge favors the more verbose pipelines (see below).
 
 ---
 
-## Key Results (from live benchmark run)
+## Key Results (from `python -m evaluation.benchmark`, 20 questions)
 
 | Metric | LLM Only | Basic RAG | GraphRAG |
 |---|---|---|---|
-| Avg total tokens | ~2,410 | ~8,536 | ~510 |
-| Token reduction vs RAG | — | baseline | **94%** |
-| Avg BERTScore F1 | ~0.71 | ~0.862 | 1.000 (reference) |
-| LLM-Judge pass rate | ~11/20 | ~17/20 | **20/20** |
-| Graph hops | 0 | 0 | 3 |
-| Cost / query | ~$0.00054 | ~$0.00133 | ~$0.00006 |
+| Avg total tokens | ~2,383 | ~8,291 | **~1,690** |
+| Token reduction vs RAG | — | baseline | **79%** |
+| Avg BERTScore F1 | 0.833 | 0.832 | **0.847** |
+| LLM-Judge pass rate | 20/20 | 13/20 | 3/20 |
+| Graph hops | 0 | 0 | 2–3 |
+| Cost / query | ~$0.00055 | ~$0.0013 | **~$0.0003** |
+
+> **Reading these honestly:** GraphRAG wins decisively on **efficiency** — fewest tokens, lowest cost, and the highest BERTScore (its answers are semantically closest to the hand-written references). But on the **LLM-Judge pass rate** — which asks whether an answer comprehensively covers the reference's specific facts — the verbose pipelines win, because GraphRAG's distilled graph context omits some specifics (exact revenue figures, full segment breakdowns). This is a real efficiency-vs-completeness tradeoff, not a clean sweep. Every number here comes from the committed `data/processed/benchmark_results.jsonl`.
 
 ---
 
@@ -85,9 +89,9 @@ This project runs the same financial question through **three AI pipelines simul
              │                  │                  │
              ▼                  ▼                  ▼
       Gemini 2.5 Flash    FAISS Index        TigerGraph Savanna
-      (Google AI API)     234 MB             49 companies
-                          159,789 vectors    245 10-K filings
-                          384-dim            ~900K vertices + edges
+      (Google AI API)     437 MB             49 companies
+                          298,221 vectors    245 10-K filings
+                          384-dim            ~1,650 vertices + ~9,800 edges
 ```
 
 ### Three-Pipeline Deep Dive
@@ -99,7 +103,7 @@ This project runs the same financial question through **three AI pipelines simul
 
 **Pipeline 2 — Basic RAG**
 - Encodes query with `all-MiniLM-L6-v2` (384-dim, local, free)
-- FAISS flat inner-product search across 159,789 chunk embeddings
+- FAISS flat inner-product search across 298,221 chunk embeddings
 - Retrieves top-5 chunks (~512 tokens each) → feeds all as context
 - High accuracy but token cost scales with chunk size × K
 
@@ -117,37 +121,38 @@ This project runs the same financial question through **three AI pipelines simul
 
 ## Dataset
 
-**49 S&P 500 companies · 245 10-K filings · 2019–2023 · 159,789 chunks · 110M+ tokens**
+**49 S&P 500 companies · 245 10-K filings · 2019–2023 · 298,221 chunks · 205M+ tokens**
 
 | Sector | Companies |
 |---|---|
-| Technology | AAPL, MSFT, NVDA, GOOGL, META, INTC, AMD, QCOM, AVGO, TXN |
-| Finance | JPM, BAC, GS, MS, WFC, C, BLK, AXP, USB, PNC |
-| Healthcare | JNJ, UNH, PFE, ABBV, MRK, TMO, ABT, DHR, BMY, AMGN |
-| Energy | XOM, CVX, COP, SLB, EOG, PSX, VLO, MPC, OXY, HES |
-| Consumer / Other | AMZN, TSLA, WMT, HD, MCD, BA, DIS, NKE, COST, LMT |
+| Technology | AAPL, AMD, AMZN, GOOGL, INTC, META, MSFT, NVDA, ORCL, TSLA |
+| Finance | AXP, BAC, C, GS, JPM, MS, SCHW, USB, WFC |
+| Healthcare | ABBV, AMGN, BMY, CVS, JNJ, MRK, PFE, UNH |
+| Energy | COP, CVX, MPC, PSX, SLB, VLO, XOM |
+| Retail | COST, HD, MCD, NKE, SBUX, TGT, WMT |
+| Industrial | BA, CAT, GE, HON, MMM |
+| Telecom / Media | DIS, T, VZ |
 
 All data sourced from SEC EDGAR — fully public domain.
 
 ### TigerGraph Schema
 
 ```
-7 Vertex Types:
-  Company      — ticker, name, sector, CIK
-  Document     — doc_id, year, filing_type, company_ticker
-  Risk         — risk_id, description, category
-  Executive    — exec_id, name, title, company_ticker, year
-  Sector       — sector_id, name
-  EarningsCall — call_id, company_ticker, quarter, year
-  MacroEvent   — event_id, name, date
+6 Vertex Types:
+  Company     — id, name, ticker, sector
+  Document    — id, ticker, year, filing_type
+  Risk        — id, description, category
+  Executive   — id, name, title
+  Sector      — id, name
+  MacroEvent  — id, description, year
 
 6 Edge Types:
-  FILED_BY      Document  → Company    (year)
-  MENTIONS_RISK Document  → Risk       (context snippet)
-  HAS_EXECUTIVE Company   → Executive  (year)
-  OPERATES_IN   Company   → Sector
-  SUCCEEDED_BY  Document  → Document   (YoY trend multi-hop)
-  DISCUSSED_IN  MacroEvent → EarningsCall
+  FILED_BY          Document → Company
+  MENTIONS_RISK     Document → Risk    (per-document description)
+  HAS_EXECUTIVE     Company  → Executive
+  OPERATES_IN       Company  → Sector
+  SUCCEEDED_BY      Document → Document (YoY trend multi-hop)
+  ALSO_MENTIONED_BY Risk     → Document (cross-company "who else cites this risk")
 ```
 
 ---
@@ -155,7 +160,7 @@ All data sourced from SEC EDGAR — fully public domain.
 ## Features
 
 ### Main Dashboard (`/`)
-- **Hero** with live stats: 88% token reduction, 49 companies, 3-hop depth, 160K chunks
+- **Hero** with live stats (fetched from the API): token reduction %, company count, 3-hop depth, chunk count
 - **4 query categories** with chips: Single Company, Cross-Company, Sector, Trend (YoY)
 - **Animated loading** — step-by-step messages per pipeline while running
 - **3-column results** — LLM Only, Basic RAG, GraphRAG side by side
@@ -164,8 +169,8 @@ All data sourced from SEC EDGAR — fully public domain.
 - **Metrics table** — tokens, latency, cost, BERTScore F1, LLM-Judge pass/fail
 
 ### Benchmark Runner (`/benchmark`)
-- **Stats header**: 110M+ tokens · 49 companies · 245 filings · 159,789 chunks · 2019–2023 · 7 sectors
-- **Summary cards**: 88% avg token reduction · 20/20 GraphRAG judge pass · 0.862 avg BERTScore
+- **Stats header**: 205M+ tokens · 49 companies · 245 filings · 298,221 chunks · 2019–2023 · 7 sectors
+- **Summary cards** (computed live from the committed results): avg token reduction, per-pipeline judge pass rate, avg BERTScore
 - **"Run All 20 Live"** — executes all 20 questions sequentially with real-time progress bar
 - **Per-row ▶ play button** — run any single question on demand
 - Live results highlighted with emerald dot, merges over pre-computed baseline
@@ -191,8 +196,8 @@ graphrag-finance/
 ├── data/
 │   ├── raw/                          # Downloaded SEC filings (gitignored)
 │   └── processed/
-│       ├── chunks.jsonl              # 159,789 text chunks with metadata
-│       ├── faiss.index               # 234MB FAISS flat index
+│       ├── chunks.jsonl              # 298,221 text chunks with metadata
+│       ├── faiss.index               # 437MB FAISS flat index
 │       └── benchmark_results.jsonl  # Offline benchmark output
 │
 ├── ingestion/
@@ -287,7 +292,7 @@ TIGERGRAPH_SECRET=your_secret_here
 
 ### 3. Download SEC Filings & Build FAISS Index
 
-> ⚠️ Downloads ~245 HTML filings, builds 159,789 chunk embeddings. Allow 30–60 min.
+> ⚠️ Downloads ~245 HTML filings, builds 298,221 chunk embeddings. Allow 30–60 min.
 
 ```bash
 python -m ingestion.download_sec      # ~245 10-K filings → data/raw/
@@ -296,13 +301,13 @@ python -m ingestion.parse_filings     # chunks.jsonl + faiss.index → data/proc
 
 Verify:
 ```bash
-wc -l data/processed/chunks.jsonl    # → ~159,789
-ls -lh data/processed/faiss.index   # → ~234 MB
+wc -l data/processed/chunks.jsonl    # → ~298,221
+ls -lh data/processed/faiss.index   # → ~437 MB
 ```
 
 ### 4. Build the Knowledge Graph
 
-> ⚠️ Loads ~900K vertices + edges into TigerGraph. Allow 60–90 min.
+> ⚠️ Loads ~1,650 vertices + ~9,800 edges into TigerGraph. Allow 60–90 min.
 
 ```bash
 # Refresh token first if using Savanna:
@@ -400,12 +405,14 @@ This checks all prerequisites and runs all 3 pipelines on a test query, printing
 Returns live dataset statistics:
 ```json
 {
-  "chunks": 159789,
+  "chunks": 298221,
   "companies": 49,
+  "filings": 245,
+  "sectors": 7,
   "years": ["2019", "2020", "2021", "2022", "2023"],
-  "estimated_tokens": 109044512,
+  "estimated_tokens": 203597056,
   "faiss_index_exists": true,
-  "faiss_index_size_mb": 234.1,
+  "faiss_index_size_mb": 437.0,
   "llm_provider": "gemini",
   "model": "gemini-2.5-flash"
 }
@@ -439,20 +446,21 @@ Returns live dataset statistics:
 ## Why GraphRAG Wins
 
 ```
-Basic RAG for "Apple risk factors 2022":
-  → Retrieves 5 raw 10-K chunks × ~512 tokens = ~2,560 tokens of prose
+Basic RAG for "Apple's main risk factors in 2022":
+  → Retrieves 5 raw 10-K chunks of prose
   → LLM reads all of it to extract the relevant parts
-  → Total: ~8,536 tokens
+  → Total: 8,418 tokens   (judge: PASS)
 
 GraphRAG for the same query:
   → Hop 0: Match Company(AAPL)           — 1 vertex
   → Hop 1: Get Document(2022 10-K)       — 1 document
-  → Hop 2: Get Risk entities             — "Supply Chain", "Cybersecurity", "Regulation"
-  → Context sent to LLM: ~400 structured tokens of facts, not raw prose
-  → Total: ~510 tokens
+  → Hop 2: Get Risk entities             — per-document risk sentences from Item 1A
+  → Context sent to LLM: structured facts, not raw prose
+  → Total: 2,300 tokens   (judge: PASS)
 
-Token savings: (8,536 - 510) / 8,536 = 94%
-Cost savings:  $0.00133 → $0.00006 per query
+Token savings on this query: (8,418 - 2,300) / 8,418 = 73%
+Cost savings:  $0.00134 → $0.00032 per query
+(Average across all 20 questions: 79% fewer tokens than Basic RAG.)
 ```
 
 The graph is a pre-computed semantic index — it knows *what entities matter* so the LLM only processes relevant structured facts, never raw paragraphs.
@@ -465,7 +473,7 @@ The graph is a pre-computed semantic index — it knows *what entities matter* s
 |---|---|
 | LLM | Gemini 2.5 Flash (Google AI, OpenAI-compatible endpoint) |
 | Embeddings | sentence-transformers `all-MiniLM-L6-v2` (local, 384-dim) |
-| Vector Store | FAISS CPU flat index (234 MB) |
+| Vector Store | FAISS CPU flat index (437 MB) |
 | Graph DB | TigerGraph Savanna cloud / Community Edition |
 | Graph Client | pyTigerGraph |
 | NER | spaCy `en_core_web_sm` |
@@ -481,13 +489,13 @@ The graph is a pre-computed semantic index — it knows *what entities matter* s
 
 Built for the **TigerGraph GraphRAG Inference Hackathon**.
 
-**Core claim:** Knowledge graphs are a lossless compression format for RAG. Every risk entity, executive name, and sector relationship is a pre-extracted fact stored as a typed edge — retrieval becomes a targeted traversal, not a brute-force similarity search over 160K chunks.
+**Core claim:** Knowledge graphs are a lossless compression format for RAG. Every risk entity, executive name, and sector relationship is a pre-extracted fact stored as a typed edge — retrieval becomes a targeted traversal, not a brute-force similarity search over 298K chunks.
 
 **What makes this demo compelling:**
 1. **Real data** — 245 actual SEC 10-K filings, zero synthetic examples
 2. **Live three-way comparison** — same question, three approaches, side by side in real time
 3. **Visual proof** — D3.js graph makes the traversal path visible, not just claimed
-4. **Hard numbers** — 94% token reduction, 20/20 LLM-Judge pass rate, measured live
+4. **Hard, honest numbers** — 79% token reduction and highest BERTScore for GraphRAG, with a transparent efficiency-vs-completeness tradeoff on the LLM-Judge, all measured from a committed benchmark run
 5. **Session accumulation** — token savings counter grows with every query
 
 ---

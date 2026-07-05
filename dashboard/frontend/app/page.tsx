@@ -55,7 +55,7 @@ const PIPELINE_STEPS: Record<string, { icon: string; color: string; steps: strin
   },
   "Basic RAG": {
     icon: "🔍", color: "blue",
-    steps: ["Embedding query…", "Searching FAISS index (159K chunks)…", "Retrieving top-8 chunks…", "Synthesizing answer…"],
+    steps: ["Embedding query…", "Searching FAISS index…", "Retrieving top chunks…", "Synthesizing answer…"],
   },
   "GraphRAG": {
     icon: "🕸️", color: "emerald",
@@ -139,10 +139,31 @@ function LoadingState() {
 interface LiveStats {
   chunks: number;
   companies: number;
+  filings: number;
+  sectors: number;
+  years: string[];
   estimated_tokens: number;
   faiss_index_exists: boolean;
   model: string;
 }
+
+interface Company {
+  ticker: string;
+  name: string;
+  sector: string;
+  filings: number;
+}
+
+const SECTOR_COLORS: Record<string, { border: string; accent: string; bg: string }> = {
+  Technology: { border: "border-blue-800/30 hover:border-blue-500/50",   accent: "text-blue-400",   bg: "from-blue-900/40 to-slate-900" },
+  Finance:    { border: "border-sky-800/30 hover:border-sky-500/40",     accent: "text-sky-400",    bg: "from-sky-900/30 to-slate-900" },
+  Healthcare: { border: "border-rose-800/30 hover:border-rose-500/40",   accent: "text-rose-400",   bg: "from-rose-900/30 to-slate-900" },
+  Energy:     { border: "border-orange-800/30 hover:border-orange-500/40", accent: "text-orange-400", bg: "from-orange-900/30 to-slate-900" },
+  Retail:     { border: "border-emerald-800/30 hover:border-emerald-500/40", accent: "text-emerald-400", bg: "from-emerald-900/30 to-slate-900" },
+  Industrial: { border: "border-indigo-800/30 hover:border-indigo-500/40", accent: "text-indigo-400", bg: "from-indigo-900/30 to-slate-900" },
+  Telecom:    { border: "border-purple-800/30 hover:border-purple-500/40", accent: "text-purple-400", bg: "from-purple-900/30 to-slate-900" },
+  Other:      { border: "border-slate-600/40 hover:border-slate-500/40", accent: "text-slate-400",  bg: "from-slate-700/50 to-slate-900" },
+};
 
 export default function Home() {
   const [result, setResult] = useState<BenchmarkResult | null>(null);
@@ -150,6 +171,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [liveStats, setLiveStats] = useState<LiveStats | null>(null);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [avgReduction, setAvgReduction] = useState<number | null>(null);
   const demoRef = useRef<HTMLDivElement>(null);
 
   // Fetch live backend stats on mount
@@ -158,7 +181,26 @@ export default function Home() {
       .then((r) => r.json())
       .then((data) => setLiveStats(data))
       .catch(() => {}); // silently ignore if backend not running
+
+    fetch(`${API_URL}/api/companies`)
+      .then((r) => r.json())
+      .then((data) => setCompanies(data))
+      .catch(() => {});
+
+    // Headline token-reduction number is the real average from the committed
+    // benchmark results, not a hardcoded constant.
+    fetch(`${API_URL}/api/benchmark`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((rows: { token_reduction_pct: number }[]) => {
+        if (Array.isArray(rows) && rows.length) {
+          const avg = rows.reduce((a, r) => a + (r.token_reduction_pct ?? 0), 0) / rows.length;
+          setAvgReduction(Math.round(avg));
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const reductionLabel = avgReduction !== null ? `${avgReduction}%` : "80%+";
 
   function scrollToDemo() {
     demoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -242,9 +284,13 @@ export default function Home() {
               <span className="gradient-text">proves itself live.</span>
             </h1>
             <p className="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-              Ask any question across <span className="text-cyan-400 font-semibold">110M tokens</span> of real SEC 10-K filings from 49 S&amp;P 500 companies.
-              Watch three AI pipelines answer it simultaneously — and see why GraphRAG wins by up to{" "}
-              <span className="text-emerald-400 font-bold">88% fewer tokens</span>.
+              Ask any question across{" "}
+              <span className="text-cyan-400 font-semibold">
+                {liveStats ? `${(liveStats.estimated_tokens / 1e6).toFixed(0)}M tokens` : "real"}
+              </span>{" "}
+              of real SEC 10-K filings from {liveStats ? liveStats.companies : "S&P 500"} companies.
+              Watch three AI pipelines answer it simultaneously — and see why GraphRAG uses{" "}
+              <span className="text-emerald-400 font-bold">{reductionLabel} fewer tokens</span> than vector RAG.
             </p>
           </div>
 
@@ -268,10 +314,10 @@ export default function Home() {
           {/* Stats grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 max-w-3xl mx-auto">
             {[
-              { n: "88%",   label: "Token Reduction", sub: "GraphRAG vs Basic RAG" },
-              { n: liveStats ? `${liveStats.companies}` : "49", label: "S&P 500 Companies", sub: "7 sectors, 5 years" },
+              { n: reductionLabel, label: "Token Reduction", sub: "GraphRAG vs Basic RAG" },
+              { n: liveStats ? `${liveStats.companies}` : "—", label: "S&P 500 Companies", sub: liveStats ? `${liveStats.sectors} sectors, ${liveStats.years.length} years` : "loading…" },
               { n: "3-hop", label: "Max Graph Depth", sub: "Company→Doc→Risk→Peer" },
-              { n: liveStats ? `${(liveStats.chunks / 1000).toFixed(0)}K` : "159K+", label: "Text Chunks", sub: liveStats ? `${(liveStats.estimated_tokens / 1e6).toFixed(0)}M tokens` : "110M tokens indexed" },
+              { n: liveStats ? `${(liveStats.chunks / 1000).toFixed(0)}K` : "—", label: "Text Chunks", sub: liveStats ? `${(liveStats.estimated_tokens / 1e6).toFixed(0)}M tokens` : "loading…" },
             ].map((s) => (
               <div key={s.label} className="rounded-2xl border border-slate-800 bg-slate-900/40 backdrop-blur-sm px-4 py-4 text-center hover:border-slate-700 transition-colors">
                 <p className="text-2xl font-black gradient-text">{s.n}</p>
@@ -319,7 +365,7 @@ export default function Home() {
               {
                 num: "02", name: "Basic RAG", color: "blue",
                 icon: "🔍",
-                desc: "Top-5 chunks retrieved from 159,000+ SEC filing passages via FAISS vector search, then fed as context to the LLM.",
+                desc: `Top-5 chunks retrieved from ${liveStats ? liveStats.chunks.toLocaleString() : "thousands of"} SEC filing passages via FAISS vector search, then fed as context to the LLM.`,
                 pros: ["Grounded in real filings", "Semantic search"],
                 cons: ["Large context window", "High token cost"],
               },
@@ -327,7 +373,7 @@ export default function Home() {
                 num: "03", name: "GraphRAG", color: "emerald",
                 icon: "🕸️",
                 desc: "Multi-hop TigerGraph traversal extracts only the precise facts needed — Company → Document → Risk/Executive — in 2 hops.",
-                pros: ["88% fewer tokens", "Structured reasoning", "Multi-hop context"],
+                pros: [`${reductionLabel} fewer tokens`, "Structured reasoning", "Multi-hop context"],
                 cons: ["Requires graph build"],
               },
             ].map((p) => (
@@ -375,7 +421,7 @@ export default function Home() {
           {/* Graph schema */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 backdrop-blur-sm">
             <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-5 text-center">
-              TigerGraph Knowledge Graph — 5 Vertex Types · 5 Edge Types
+              TigerGraph Knowledge Graph — 6 Vertex Types · 6 Edge Types
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2">
               {[
@@ -428,16 +474,17 @@ export default function Home() {
             <p className="text-xs font-bold uppercase tracking-widest text-cyan-500">Dataset</p>
             <h2 className="text-4xl sm:text-5xl font-black text-white">Real filings. Real answers.</h2>
             <p className="text-slate-400 max-w-xl mx-auto">
-              245 SEC 10-K annual reports downloaded directly from EDGAR, chunked, embedded, and loaded into TigerGraph — 110M tokens, no synthetic data, no shortcuts.
+              {liveStats ? `${liveStats.filings} SEC 10-K annual reports` : "SEC 10-K annual reports"} downloaded directly from EDGAR, chunked, embedded, and loaded into TigerGraph
+              {liveStats ? ` — ${(liveStats.estimated_tokens / 1e6).toFixed(0)}M tokens` : ""}, no synthetic data, no shortcuts.
             </p>
           </div>
 
           {/* Stats row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
             {[
-              { value: "245",    label: "10-K Filings",      sub: "49 companies × 5 years",        color: "text-cyan-400" },
-              { value: "159K+",  label: "Text Chunks",       sub: "110M tokens indexed",            color: "text-blue-400" },
-              { value: "7",      label: "Vertex Types",      sub: "Company, Doc, Risk, Exec…",      color: "text-emerald-400" },
+              { value: liveStats ? `${liveStats.filings}` : "—", label: "10-K Filings",      sub: liveStats ? `${liveStats.companies} companies × ${liveStats.years.length} years` : "loading…", color: "text-cyan-400" },
+              { value: liveStats ? `${(liveStats.chunks / 1000).toFixed(0)}K+` : "—",  label: "Text Chunks",       sub: liveStats ? `${(liveStats.estimated_tokens / 1e6).toFixed(0)}M tokens indexed` : "loading…",            color: "text-blue-400" },
+              { value: "6",      label: "Vertex Types",      sub: "Company, Doc, Risk, Exec…",      color: "text-emerald-400" },
               { value: "6",      label: "Edge Types",        sub: "Multi-hop graph traversal",      color: "text-violet-400" },
             ].map(s => (
               <div key={s.label} className="rounded-2xl border border-white/5 bg-slate-900/50 p-5 text-center">
@@ -448,73 +495,34 @@ export default function Home() {
             ))}
           </div>
 
-          {/* Company cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 mb-8">
-            {[
-              {
-                ticker: "AAPL", name: "Apple Inc.", sector: "Technology",
-                color: "from-slate-700/50 to-slate-900", border: "border-slate-600/40 hover:border-blue-500/40",
-                accent: "text-blue-400",
-                facts: ["iPhone, Mac, Services", "Revenue $394B (2022)", "Tim Cook, CEO"],
-                filings: 5,
-              },
-              {
-                ticker: "MSFT", name: "Microsoft Corp.", sector: "Technology",
-                color: "from-blue-900/40 to-slate-900", border: "border-blue-800/30 hover:border-blue-500/50",
-                accent: "text-cyan-400",
-                facts: ["Cloud, Office, Azure", "Revenue $211B (2023)", "Satya Nadella, CEO"],
-                filings: 5,
-              },
-              {
-                ticker: "JPM", name: "JPMorgan Chase", sector: "Finance",
-                color: "from-sky-900/30 to-slate-900", border: "border-sky-800/30 hover:border-sky-500/40",
-                accent: "text-sky-400",
-                facts: ["Largest US bank", "Assets $3.7T (2022)", "Jamie Dimon, CEO"],
-                filings: 5,
-              },
-              {
-                ticker: "XOM", name: "ExxonMobil", sector: "Energy",
-                color: "from-orange-900/30 to-slate-900", border: "border-orange-800/30 hover:border-orange-500/40",
-                accent: "text-orange-400",
-                facts: ["Oil, Gas, Chemicals", "Revenue $398B (2022)", "Darren Woods, CEO"],
-                filings: 5,
-              },
-              {
-                ticker: "JNJ", name: "Johnson & Johnson", sector: "Healthcare",
-                color: "from-rose-900/30 to-slate-900", border: "border-rose-800/30 hover:border-rose-500/40",
-                accent: "text-rose-400",
-                facts: ["Pharma, MedTech", "Revenue $93.8B (2022)", "Joaquin Duato, CEO"],
-                filings: 5,
-              },
-            ].map(c => (
-              <div key={c.ticker} className={`rounded-2xl border ${c.border} bg-gradient-to-b ${c.color} p-5 flex flex-col gap-3 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-black/30`}>
-                {/* Header */}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className={`text-2xl font-black ${c.accent}`}>{c.ticker}</p>
-                    <p className="text-xs text-slate-300 mt-0.5 leading-tight">{c.name}</p>
+          {/* Company cards — fetched live from /api/companies, not hand-authored */}
+          {companies.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
+              {companies.map(c => {
+                const palette = SECTOR_COLORS[c.sector] ?? SECTOR_COLORS.Other;
+                return (
+                  <div key={c.ticker} className={`rounded-2xl border ${palette.border} bg-gradient-to-b ${palette.bg} p-5 flex flex-col gap-3 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-black/30`}>
+                    {/* Header */}
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className={`text-2xl font-black ${palette.accent}`}>{c.ticker}</p>
+                        <p className="text-xs text-slate-300 mt-0.5 leading-tight">{c.name}</p>
+                      </div>
+                      <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-500 border border-slate-700 rounded-full px-2 py-0.5">{c.sector}</span>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="mt-auto pt-3 border-t border-white/5 flex items-center justify-between">
+                      <span className="text-[10px] text-slate-500">10-K filings</span>
+                      <span className={`text-sm font-bold ${palette.accent}`}>{c.filings} years</span>
+                    </div>
                   </div>
-                  <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-500 border border-slate-700 rounded-full px-2 py-0.5">{c.sector}</span>
-                </div>
-
-                {/* Facts */}
-                <ul className="space-y-1.5">
-                  {c.facts.map(f => (
-                    <li key={f} className="flex items-start gap-1.5 text-[11px] text-slate-400">
-                      <span className={`mt-0.5 text-[8px] ${c.accent}`}>▶</span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-
-                {/* Footer */}
-                <div className="mt-auto pt-3 border-t border-white/5 flex items-center justify-between">
-                  <span className="text-[10px] text-slate-500">10-K filings</span>
-                  <span className={`text-sm font-bold ${c.accent}`}>{c.filings} years</span>
-                </div>
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-center text-slate-500 text-sm mb-8">Company list loads once the backend is running.</p>
+          )}
 
           {/* Years + pipeline legend row */}
           <div className="grid sm:grid-cols-2 gap-4">
@@ -559,7 +567,7 @@ export default function Home() {
 
           {/* Graph schema */}
           <div className="mt-4 rounded-2xl border border-emerald-500/10 bg-emerald-500/5 p-5">
-            <p className="text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-4">TigerGraph Knowledge Graph — 7 Vertex Types · 6 Edge Types</p>
+            <p className="text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-4">TigerGraph Knowledge Graph — 6 Vertex Types · 6 Edge Types</p>
             <div className="flex flex-wrap items-center gap-2 text-xs">
               {[
                 { label: "Company",     color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
@@ -611,7 +619,7 @@ export default function Home() {
             <p className="text-xs font-bold uppercase tracking-widest text-emerald-500">Live Benchmark</p>
             <h2 className="text-4xl font-black text-white">Enter your query</h2>
             <p className="text-slate-400 max-w-xl mx-auto text-sm">
-              Type any financial question about 49 S&amp;P 500 companies including Apple, Microsoft, JPMorgan, NVIDIA, Tesla, Goldman Sachs and more — from 2019–2023.
+              Type any financial question about {liveStats ? liveStats.companies : "the loaded"} S&amp;P 500 companies including Apple, Microsoft, JPMorgan, NVIDIA, Tesla, Goldman Sachs and more — from 2019–2023.
               All three pipelines run in parallel.
             </p>
           </div>

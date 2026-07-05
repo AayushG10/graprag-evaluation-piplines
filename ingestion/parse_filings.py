@@ -36,17 +36,33 @@ def extract_text_from_sgml(filepath: pathlib.Path) -> str:
 
     all_text_parts = []
     for block in text_blocks:
-        # Skip pure XBRL/XML blocks (they contain no readable text)
-        if block.strip().startswith("<?xml") or "<xbrl" in block[:200].lower():
+        # Skip pure XML data blocks (standalone XBRL instance/schema documents
+        # that start with an XML declaration and contain no human-readable
+        # prose at all). Do NOT skip on "<xbrl" alone — modern 10-Ks use
+        # Inline XBRL, where the entire human-readable filing itself is
+        # wrapped in XBRL tags, so that heuristic was discarding the main
+        # document (Item 1 Business, Item 1A Risk Factors, MD&A, etc.) for
+        # every filing. The ix:header/xbrli:xbrl/xbrl tag removal below plus
+        # the post-extraction length check already handle telling prose
+        # apart from pure machine-readable data.
+        if block.strip().startswith("<?xml"):
             continue
         # Skip binary/encoded blocks
         if "begin 644" in block[:100]:
             continue
 
         soup = BeautifulSoup(block, "lxml")
-        for tag in soup(["script", "style", "head", "meta", "link",
-                          "ix:header", "xbrli:xbrl", "xbrl"]):
+        # These contain no visible content — safe to remove entirely,
+        # including their children (ix:header holds hidden XBRL tagging
+        # metadata, not prose).
+        for tag in soup(["script", "style", "head", "meta", "link", "ix:header"]):
             tag.decompose()
+        # These are just outer wrapper/namespace containers around the
+        # *entire* visible document in Inline XBRL filings — unwrap (drop
+        # the tag but keep its children) rather than decompose, or the
+        # whole human-readable filing gets deleted along with the wrapper.
+        for tag in soup(["xbrli:xbrl", "xbrl"]):
+            tag.unwrap()
 
         text = soup.get_text(separator=" ")
         text = re.sub(r"\s+", " ", text).strip()

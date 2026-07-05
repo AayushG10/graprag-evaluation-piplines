@@ -1,6 +1,6 @@
-# I Built a Live Benchmark That Proves GraphRAG Cuts LLM Costs by 94% — On Real Financial Data
+# I Built a Benchmark That Measures How Much GraphRAG Cuts LLM Costs — On Real Financial Data
 
-> *Every number in this post was measured live. No synthetic data. No cherry-picked examples. Just 245 real SEC filings and three AI pipelines running side-by-side.*
+> *Every number in this post comes from a committed benchmark run (`data/processed/benchmark_results.jsonl`). No synthetic data, no cherry-picked examples, no invented results. Just 245 real SEC filings and three AI pipelines run side-by-side — including the parts where GraphRAG doesn't win.*
 
 ---
 
@@ -68,13 +68,13 @@ I wanted real data, not toy examples. So I downloaded:
 - **49 S&P 500 companies** across Technology, Finance, Healthcare, Energy, and Consumer sectors
 - **245 SEC 10-K annual reports** pulled directly from EDGAR (the SEC's public filing system)
 - **5 years** of filings — 2019, 2020, 2021, 2022, 2023
-- Processed into **159,789 text chunks** — over **110 million tokens** of real financial language
+- Processed into **298,221 text chunks** — over **205 million tokens** of real financial language
 
 No synthetic data. No Wikipedia summaries. Everything came from actual filings that actual companies submitted to the SEC.
 
 I then built two parallel data stores from this corpus:
 
-**A FAISS vector index** — 159,789 embeddings generated with `all-MiniLM-L6-v2` (a fast, free local model). This powers the Basic RAG pipeline. The index sits at 234 MB.
+**A FAISS vector index** — 298,221 embeddings generated with `all-MiniLM-L6-v2` (a fast, free local model). This powers the Basic RAG pipeline. The index sits at 437 MB.
 
 **A TigerGraph knowledge graph** — built by running spaCy NER over every filing to extract organizations, people, and risk categories, then loading everything into TigerGraph Savanna. The graph has 7 vertex types, 6 edge types, and roughly 900,000 vertices and edges.
 
@@ -128,19 +128,20 @@ I ran 20 financial questions across all three pipelines. Every number was measur
 
 | Metric | 🧠 LLM Only | 🔍 Basic RAG | 🕸️ GraphRAG |
 |---|---|---|---|
-| Avg total tokens | 2,410 | 8,536 | **510** |
-| Token reduction vs RAG | — | baseline | **94%** |
-| Cost per query | $0.00054 | $0.00133 | **$0.00006** |
-| LLM-Judge pass rate | 11 / 20 | 17 / 20 | **20 / 20** |
-| BERTScore F1 | 0.795 | 0.820 | **1.000** |
-| Avg latency | ~1.2s | ~5.5s | ~8.2s |
+| Avg total tokens | 2,383 | 8,291 | **1,690** |
+| Token reduction vs RAG | — | baseline | **79%** |
+| Cost per query | ~$0.00055 | ~$0.0013 | **~$0.0003** |
+| LLM-Judge pass rate | **20 / 20** | 13 / 20 | 3 / 20 |
+| Avg BERTScore F1 | 0.833 | 0.832 | **0.847** |
 | Graph hops | 0 | 0 | 2–3 |
 
-The token story is stark: **GraphRAG uses 510 tokens where Basic RAG uses 8,536.** On the same question. With a better answer.
+The token story is the clear win: **GraphRAG averages 1,690 tokens where Basic RAG averages 8,291** — 79% fewer, at roughly a quarter of the cost per query. And on **BERTScore F1** (semantic similarity to the hand-written reference answers), GraphRAG scores *highest* of the three — its answers are, on average, the closest in meaning to the gold references.
 
-The quality story is equally clear: **20/20 LLM-Judge pass rate.** The judge (Gemini evaluating each answer against a gold reference) consistently found GraphRAG answers more accurate and more specific. Structured graph facts — precise risk categories, exact filing years, named executives — lead to answers that cite the right details rather than summarising vague paragraphs.
+But here's the part I'm not going to hide: on the **LLM-Judge pass rate, GraphRAG loses.** The judge (Gemini) reads each answer against a detailed gold reference and asks "does this comprehensively cover the key points?" GraphRAG's compact, graph-distilled answers pass only 3 of 20 — because to hit a small token budget, they leave out specifics the reference includes (an exact revenue figure, every named executive, a full segment breakdown). The verbose pipelines pass more often precisely because they dump more text and are more likely to contain the specific fact the judge is looking for.
 
-The BERTScore result deserves an explanation. GraphRAG's answers serve as the *reference baseline* that LLM Only and Basic RAG are scored against. Why? Because when no gold reference is available, graph-grounded answers are the most reliably factual — they trace directly to specific vertices loaded from actual SEC filings. This isn't a cheat. It's an acknowledgment that graph traversal represents the ceiling of factual precision in this system.
+So the honest takeaway is a **tradeoff, not a clean sweep**: GraphRAG is dramatically cheaper and semantically on-target, but if you need exhaustive coverage of every detail in one shot, the retrieval pipelines still edge it out on this strict judge. Which one "wins" depends entirely on whether you're optimizing for cost and precision or for completeness.
+
+> A note on methodology: an earlier version of this project scored the other pipelines against *GraphRAG's own answer* whenever no gold reference was supplied — which, of course, made GraphRAG impossible to beat. That was wrong, and it's been removed. Every score above is measured against an independent, hand-written reference answer.
 
 ---
 
@@ -150,7 +151,7 @@ Numbers on a page are one thing. Watching it happen live is another.
 
 When you submit a query, all three pipelines fire simultaneously. Animated loading messages show what each pipeline is doing in real time:
 - LLM Only: *"Sending query to Gemini…"*
-- Basic RAG: *"Searching 159,789 chunks… Retrieving top 5…"*
+- Basic RAG: *"Searching 298,221 chunks… Retrieving top 5…"*
 - GraphRAG: *"Traversing knowledge graph… Hop 1: Documents… Hop 2: Risk entities…"*
 
 Once results arrive, three things happen at once:
@@ -159,7 +160,7 @@ Once results arrive, three things happen at once:
 
 **The D3.js graph visualization** animates on the GraphRAG card. This is the feature that surprised people most during testing. You watch the graph build itself hop by hop — the Company node appears first, then Document nodes fan out from it, then Risk entities light up one by one, then Sector peers populate at the edges. The entire reasoning chain is visible and interactive. You can drag nodes, zoom in, hover for details. RAG is a black box. GraphRAG shows its work.
 
-**The Token Savings Dashboard** appears below the results. Animated counters tick up to the final token counts. A bar chart snaps into proportion — GraphRAG's bar is barely a sliver next to Basic RAG's full-width bar. Two callout cards read "94% cheaper vs Basic RAG" and "79% cheaper vs LLM Only." If you run multiple queries, a running session total builds up across the page — after just five queries you've typically saved 40,000+ tokens. That running total makes the cost story visceral, not just statistical.
+**The Token Savings Dashboard** appears below the results. Animated counters tick up to the final token counts. A bar chart snaps into proportion — GraphRAG's bar is a fraction of Basic RAG's full-width bar. Callout cards show the real per-query savings vs Basic RAG and vs LLM Only. If you run multiple queries, a running session total builds up across the page. That running total makes the cost story visceral, not just statistical.
 
 ---
 
@@ -170,11 +171,11 @@ The `/benchmark` page runs 20 pre-defined financial questions spanning all 49 co
 Hit "⚡ Run All 20 Live" and watch all 20 questions execute sequentially against your backend. Each row updates in real time — LLM-Judge verdict, BERTScore F1, token count per pipeline — as results stream in. You can also click the ▶ button on any individual row to run just that question.
 
 The aggregate summary across all 20 questions:
-- **88.0% average token reduction** (GraphRAG vs Basic RAG)
-- **20/20 GraphRAG judge pass** (vs 11/20 for LLM Only)
-- **0.862 avg BERTScore** for Basic RAG (the next-best pipeline)
+- **79% average token reduction** (GraphRAG vs Basic RAG)
+- **Highest average BERTScore** (0.847) — GraphRAG answers are semantically closest to the references
+- **LLM-Judge pass rate: 20/20 LLM Only · 13/20 Basic RAG · 3/20 GraphRAG** — the completeness tradeoff, stated plainly
 
-GraphRAG wins on every single question. Not because it's always perfect, but because it's consistently more precise than random chunk retrieval.
+GraphRAG wins decisively on cost and semantic precision, and loses on the strict completeness judge. That's the real result — and it's a more useful one than a fabricated clean sweep, because it tells you *when* to reach for graph retrieval (cost-sensitive, precision-oriented workloads) versus when raw retrieval still has an edge (exhaustive single-shot coverage).
 
 ---
 
@@ -241,7 +242,7 @@ The full project is open source. Everything you need to reproduce these results:
 # Download 245 real SEC filings
 python -m ingestion.download_sec
 
-# Build FAISS index (159,789 chunks, ~30 min)
+# Build FAISS index (298,221 chunks, ~30 min)
 python -m ingestion.parse_filings
 
 # Load TigerGraph knowledge graph (~90 min)
@@ -260,11 +261,11 @@ Open [http://localhost:3000](http://localhost:3000) and ask any financial questi
 
 I started this project to answer one question: does GraphRAG actually make a measurable difference on real-world financial data, or is it just a buzzword?
 
-The answer is unambiguous.
+The answer is: yes, measurably — on cost and precision.
 
-**510 tokens vs 8,536. 20/20 judge pass rate vs 17/20. $0.00006 vs $0.00133 per query.**
+**1,690 tokens vs 8,291 on average. ~$0.0003 vs ~$0.0013 per query. And the highest BERTScore of the three pipelines.** The catch is completeness: on a strict reference-matching judge, GraphRAG's terse answers pass less often than the verbose pipelines.
 
-The graph makes a measurable difference. A big one. And the difference compounds at scale in ways that fundamentally change the economics of production AI products.
+The graph makes a real, measurable difference to the *economics* of retrieval — a ~79% token cut compounds hard at production scale. Whether that efficiency is worth the completeness tradeoff depends on your workload, and now you have honest numbers to decide with instead of a marketing headline.
 
 Knowledge graphs aren't a replacement for RAG. They're an upgrade to it. The ingestion cost is real, the latency tradeoff is real, and the entity extraction challenge is real. But the payoff — in token efficiency, answer quality, and reasoning transparency — is also very real.
 

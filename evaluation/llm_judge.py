@@ -54,7 +54,10 @@ def llm_judge(
         resp = client.chat.completions.create(
             model=settings.active_judge_model,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=150,
+            # Gemini 2.5 Flash spends several hundred tokens on internal
+            # "thinking" before any visible output, even at temperature=0 —
+            # a low cap here truncates the verdict/reason before they render.
+            max_tokens=1024,
             temperature=0,
         )
         text = resp.choices[0].message.content or ""

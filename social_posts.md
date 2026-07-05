@@ -17,12 +17,12 @@ I ran the same financial question through 3 AI pipelines.
 
 Here's what it actually cost:
 
-🧠 LLM Only:   2,410 tokens  $0.00054
-🔍 Basic RAG:  8,536 tokens  $0.00133
-🕸️ GraphRAG:     510 tokens  $0.00006
+🧠 LLM Only:   2,383 tokens  ~$0.0006
+🔍 Basic RAG:  8,291 tokens  ~$0.0013
+🕸️ GraphRAG:   1,690 tokens  ~$0.0003
 
-Same question. Same quality.
-94% fewer tokens with TigerGraph. 🧵
+Same question.
+79% fewer tokens than vector RAG with TigerGraph. 🧵
 ```
 📎 Attach: result_.png (token savings dashboard screenshot)
 
@@ -35,8 +35,8 @@ Before the AI, let me show you the data.
 245 real SEC 10-K filings
 49 S&P 500 companies
 5 years (2019–2023)
-159,789 text chunks
-110M+ tokens
+298,221 text chunks
+205M+ tokens
 
 Zero synthetic data.
 Every answer traces to an actual filing.
@@ -82,21 +82,24 @@ Everything else is noise.
 
 ---
 
-**Tweet 5 — Quality Proof**
+**Tweet 5 — The Honest Tradeoff**
 ```
 "But does GraphRAG sacrifice quality?"
 
-LLM-Judge (20 real financial questions):
-🧠 LLM Only:  11/20 PASS
-🔍 Basic RAG: 17/20 PASS
-🕸️ GraphRAG:  20/20 PASS ✅
+Here's the honest answer from 20 real questions:
 
-BERTScore F1:
-LLM Only:  0.795
-Basic RAG: 0.820
-GraphRAG:  1.000
+BERTScore F1 (semantic match to gold answer):
+🕸️ GraphRAG:  0.847  ← highest
+🔍 Basic RAG: 0.832
+🧠 LLM Only:  0.833
 
-Cheaper. And more accurate.
+Strict LLM-Judge (full coverage of every detail):
+🧠 LLM Only:  20/20
+🔍 Basic RAG: 13/20
+🕸️ GraphRAG:   3/20
+
+Cheapest + closest in meaning. But terser,
+so it covers fewer specifics. A real tradeoff.
 ```
 📎 Attach: benchmark_3.png
 
@@ -142,13 +145,13 @@ I built a benchmark on 245 real SEC 10-K filings.
 
 Same question. Three pipelines. Live results.
 
-🔍 Basic RAG:  8,536 tokens  $0.00133  17/20 pass
-🕸️ GraphRAG:     510 tokens  $0.00006  20/20 pass ✅
+🔍 Basic RAG:  8,291 tokens  ~$0.0013
+🕸️ GraphRAG:   1,690 tokens  ~$0.0003  ← highest BERTScore
 
-94% fewer tokens. Better answers.
+79% fewer tokens, closest semantic match to the gold answer.
 
 The knowledge graph sends the LLM only the facts it needs —
-not 2,560 tokens of raw legal prose.
+not thousands of tokens of raw legal prose.
 
 🔗 github.com/AayushG10/graprag-evaluation-piplines
 
@@ -164,11 +167,11 @@ Hey @TigerGraph 👋
 
 Submitted my entry for the GraphRAG Inference Hackathon 🕸️
 
-GraphRAG Finance Benchmark — 94% token reduction
+GraphRAG Finance Benchmark — 79% token reduction
 on 245 real SEC 10-K filings from 49 S&P 500 companies.
 
-510 tokens vs 8,536 for Basic RAG.
-20/20 LLM-Judge pass rate.
+1,690 tokens vs 8,291 for Basic RAG, and the highest BERTScore of the three.
+Full, honest benchmark (including where GraphRAG loses).
 Live dashboard with D3.js graph traversal.
 
 🔗 github.com/AayushG10/graprag-evaluation-piplines
@@ -183,7 +186,7 @@ Live dashboard with D3.js graph traversal.
 
 ## LINKEDIN — FULL POST
 ```
-🕸️ 94% fewer tokens. Better answers. This is what GraphRAG looks like on real data.
+🕸️ 79% fewer tokens, highest semantic accuracy — with an honest tradeoff. This is what GraphRAG looks like on real data.
 
 For the TigerGraph GraphRAG Inference Hackathon, I built a live benchmark that 
 runs the same financial question through three AI pipelines simultaneously — and 
@@ -194,12 +197,13 @@ THE NUMBERS (20 real questions, live measurement)
 ━━━━━━━━━━━━━━━━━━━━━━
 
                  LLM Only   Basic RAG   GraphRAG
-Avg tokens:        2,410      8,536       510 ✅
-Cost/query:      $0.00054   $0.00133   $0.00006 ✅
-LLM-Judge:        11/20      17/20      20/20 ✅
-BERTScore F1:      0.795      0.820      1.000 ✅
+Avg tokens:        2,383      8,291     1,690 ✅
+Cost/query:      ~$0.0006   ~$0.0013  ~$0.0003 ✅
+BERTScore F1:      0.833      0.832     0.847 ✅
+LLM-Judge:         20/20      13/20      3/20
+   (judge rewards completeness → favors verbose answers)
 
-GraphRAG wins on every metric.
+GraphRAG wins on cost and semantic accuracy; the verbose pipelines win the strict completeness judge. Honest tradeoff, real numbers.
 
 ━━━━━━━━━━━━━━━━━━━━━━
 THE DATASET
@@ -208,9 +212,9 @@ THE DATASET
 📁 49 S&P 500 companies
 📄 245 real SEC 10-K filings from EDGAR
 📅 2019–2023 — five full years
-🔢 159,789 text chunks
-💬 110M+ tokens
-🕸️ ~900K TigerGraph vertices + edges
+🔢 298,221 text chunks
+💬 205M+ tokens
+🕸️ TigerGraph knowledge graph: Company/Document/Risk/Executive/Sector vertices + typed edges
 
 Zero synthetic data. Every answer traces back to a real filing.
 
@@ -232,11 +236,11 @@ Not the haystack. Just the needle.
 THE SCALE ARGUMENT
 ━━━━━━━━━━━━━━━━━━━━━━
 
-At 1 million queries/month:
-🔍 Basic RAG costs:  $1,330
-🕸️ GraphRAG costs:     $60
+At 1 million queries/month (at the measured avg cost/query):
+🔍 Basic RAG costs:  ~$1,300
+🕸️ GraphRAG costs:    ~$300
 
-That's the difference between a viable product and an unscalable one.
+A ~4× cost difference that compounds hard at production scale.
 
 ━━━━━━━━━━━━━━━━━━━━━━
 WHAT'S IN THE DASHBOARD
@@ -265,10 +269,11 @@ I benchmarked 3 AI pipelines on 245 real SEC 10-K filings.
 
 The result:
 
-🔍 Basic RAG → 8,536 tokens — 17/20 judge pass
-🕸️ GraphRAG  →   510 tokens — 20/20 judge pass ✅
+🔍 Basic RAG → 8,291 tokens — 13/20 judge pass
+🕸️ GraphRAG  → 1,690 tokens — highest BERTScore (0.847)
 
-94% fewer tokens. More accurate. 22× cheaper per query.
+79% fewer tokens. ~4× cheaper per query. Semantically closest to the gold answer.
+(The tradeoff: on a strict completeness judge, GraphRAG's terser answers pass less often.)
 
 The graph pre-extracts risk categories, executives, and filing 
 relationships before any query arrives — so retrieval becomes 
@@ -290,19 +295,19 @@ github.com/AayushG10/graprag-evaluation-piplines
 
 **Caption**
 ```
-94% fewer tokens. 20/20 accuracy. This is GraphRAG on real financial data 🕸️
+79% fewer tokens. Highest semantic accuracy. This is GraphRAG on real financial data 🕸️
 
-I built a live benchmark comparing 3 AI pipelines on 245 real 
+I built a benchmark comparing 3 AI pipelines on 245 real 
 SEC filings from 49 S&P 500 companies.
 
-🧠 LLM Only   → 2,410 tokens
-🔍 Basic RAG  → 8,536 tokens
-🕸️ GraphRAG   →   510 tokens ✅
+🧠 LLM Only   → 2,383 tokens
+🔍 Basic RAG  → 8,291 tokens
+🕸️ GraphRAG   → 1,690 tokens ✅
 
 Traditional RAG floods the AI with raw legal text.
 GraphRAG traverses a knowledge graph and sends only the facts that matter.
 
-Same question. 94% cheaper. Better answer.
+Same question. ~4× cheaper. Closest to the gold answer.
 
 Built for the TigerGraph GraphRAG Inference Hackathon 🏆
 
@@ -326,28 +331,27 @@ Full project in bio →
 | Post | Screenshot to use | Why |
 |---|---|---|
 | Tweet 1 (hook) | `result_.png` | Token numbers are huge and readable |
-| Tweet 2 (data) | `benchmark.png` | Shows 110M tokens, 49 companies header |
+| Tweet 2 (data) | `benchmark.png` | Shows 205M tokens, 49 companies header |
 | Tweet 5 (quality) | `benchmark_3.png` | Detailed per-question table |
 | Tweet 7 (CTA) | `langing page .png` | Clean product hero shot |
-| LinkedIn full | `result_.png` | 94% + bar chart is very visual |
+| LinkedIn full | `result_.png` | token bar chart is very visual |
 | Instagram | `result_.png` | Best single image — numbers tell the story |
 
 ---
 
-# 🔑 KEY NUMBERS — Use these in every post
+# 🔑 KEY NUMBERS — Use these in every post (all from the committed benchmark)
 
 | Number | Meaning |
 |---|---|
-| **94%** | Token reduction vs Basic RAG — your headline |
-| **510 vs 8,536** | The raw before/after — impossible to misread |
-| **20/20** | LLM-Judge pass rate — proves quality |
-| **$0.00006** | GraphRAG cost per query |
-| **22×** | How much cheaper GraphRAG is ($0.00133 ÷ $0.00006) |
-| **88%** | Avg token reduction across all 20 questions |
-| **$60 vs $1,330** | Monthly cost at 1M queries — the scale argument |
+| **79%** | Avg token reduction vs Basic RAG — your headline |
+| **1,690 vs 8,291** | Avg tokens GraphRAG vs Basic RAG |
+| **0.847** | GraphRAG avg BERTScore — highest of the three (semantic accuracy) |
+| **~$0.0003** | GraphRAG avg cost per query |
+| **~4×** | How much cheaper GraphRAG is than Basic RAG per query |
+| **20 / 13 / 3** | LLM-Judge pass (LLM Only / Basic RAG / GraphRAG) — the honest completeness tradeoff |
 | **49 companies** | Dataset credibility |
 | **245 filings** | Dataset credibility |
-| **110M tokens** | Sounds impressive — use it |
+| **205M tokens** | Real dataset size |
 | **3 hops** | TigerGraph's specific multi-hop capability |
 
 ---

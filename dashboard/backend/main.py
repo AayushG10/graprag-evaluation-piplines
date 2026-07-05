@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 import pathlib
 sys.path.insert(0, ".")
 
@@ -7,7 +8,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dashboard.backend.models import QueryRequest, BenchmarkResponse
 from dashboard.backend.runner import init_pipelines, run_all
+from ingestion.build_graph import TICKER_NAMES, TICKER_SECTOR
 from config import settings
+
+BENCHMARK_RESULTS_PATH = pathlib.Path("data/processed/benchmark_results.jsonl")
 
 app = FastAPI(title="GraphRAG Finance Benchmark API")
 
@@ -38,22 +42,29 @@ def stats():
     chunks_count = 0
     companies    = set()
     years        = set()
+    filings      = set()   # distinct (ticker, year) pairs
 
     if chunks_path.exists():
-        import json
         with open(chunks_path) as f:
             for line in f:
                 try:
                     rec = json.loads(line)
                     chunks_count += 1
-                    companies.add(rec.get("ticker", ""))
-                    years.add(rec.get("year", ""))
+                    ticker = rec.get("ticker", "")
+                    year   = rec.get("year", "")
+                    companies.add(ticker)
+                    years.add(year)
+                    filings.add((ticker, year))
                 except Exception:
                     pass
+
+    sectors = {TICKER_SECTOR[t] for t in companies if t in TICKER_SECTOR}
 
     return {
         "chunks": chunks_count,
         "companies": len(companies),
+        "filings": len(filings),
+        "sectors": len(sectors),
         "years": sorted(years),
         "estimated_tokens": chunks_count * 512 * 4 // 3,   # ~683 tokens per chunk
         "faiss_index_exists": faiss_path.exists(),
@@ -61,6 +72,52 @@ def stats():
         "llm_provider": settings.LLM_PROVIDER,
         "model": settings.active_model,
     }
+
+
+@app.get("/api/companies")
+def companies():
+    """Return the real list of companies currently loaded in chunks.jsonl."""
+    chunks_path = pathlib.Path(settings.CHUNKS_PATH)
+    years_by_ticker: dict[str, set[str]] = {}
+
+    if chunks_path.exists():
+        with open(chunks_path) as f:
+            for line in f:
+                try:
+                    rec = json.loads(line)
+                    ticker = rec.get("ticker", "")
+                    year   = rec.get("year", "")
+                    if ticker:
+                        years_by_ticker.setdefault(ticker, set()).add(year)
+                except Exception:
+                    pass
+
+    return [
+        {
+            "ticker": t,
+            "name": TICKER_NAMES.get(t, t),
+            "sector": TICKER_SECTOR.get(t, "Other"),
+            "filings": len(years),
+        }
+        for t, years in sorted(years_by_ticker.items())
+    ]
+
+
+@app.get("/api/benchmark")
+def benchmark():
+    """Return the committed offline benchmark results (data/processed/benchmark_results.jsonl)."""
+    if not BENCHMARK_RESULTS_PATH.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="No benchmark results found — run `python -m evaluation.benchmark` first.",
+        )
+    rows = []
+    with open(BENCHMARK_RESULTS_PATH) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                rows.append(json.loads(line))
+    return rows
 
 
 @app.post("/api/query", response_model=BenchmarkResponse)
