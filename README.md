@@ -4,6 +4,41 @@
 
 ---
 
+## What changed (integrity fixes & methodology)
+
+An earlier version of this project presented a headline "94% reduction, 20/20 GraphRAG
+wins" story that wasn't backed by a real end-to-end run. This has been corrected. Every
+number in this repo now traces to a committed run against a fully-loaded dataset and a
+live TigerGraph. Specifically:
+
+1. **Benchmark numbers are real, not hardcoded.** The dashboard used to display fixed
+   constants typed into React. Now `python -m evaluation.benchmark` produces a committed
+   [`data/processed/benchmark_results.jsonl`](data/processed/benchmark_results.jsonl), and
+   the benchmark page reads it via `GET /api/benchmark`. No hardcoded results remain.
+
+2. **The full dataset is actually loaded.** 49 companies · 245 10-K filings · 298,221
+   chunks · ~205M tokens — verifiable live at `GET /api/stats`. (While fixing this we found
+   an inline-XBRL parsing bug that had been silently discarding the main body of every 10-K,
+   including Item 1A Risk Factors — which is why the real chunk count is *higher* than the
+   originally claimed 159,789.) The dashboard, README, and posts all read/report real numbers.
+
+3. **Scoring always uses an independent reference.** The live demo previously scored the
+   other pipelines against GraphRAG's *own* answer when no reference was supplied, so GraphRAG
+   couldn't lose. That fallback is removed — all three pipelines are scored against the same
+   hand-written reference (or the no-reference judge), never against each other's output.
+
+4. **Questions only cover loaded companies, against the live graph.** Every benchmark/demo
+   question targets a company that is actually in TigerGraph, and GraphRAG answers are built
+   from real multi-hop traversals (visible in the D3 graph view), not empty-graph fallbacks.
+
+**The honest result:** GraphRAG delivers **~79% fewer tokens** than Basic RAG and the
+**highest average BERTScore** (semantically closest to the references), but on the strict
+LLM-Judge (which rewards covering every specific fact) it passes **3/20** vs **20/20**
+(LLM Only) and **13/20** (Basic RAG). It's a real **efficiency-vs-completeness tradeoff**,
+not a clean sweep — see [Key Results](#key-results-from-python--m-evaluationbenchmark-20-questions) below.
+
+---
+
 ## Screenshots
 
 ### Landing Page
