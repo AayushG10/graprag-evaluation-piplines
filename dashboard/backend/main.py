@@ -2,7 +2,15 @@ import sys
 import os
 import json
 import pathlib
-sys.path.insert(0, ".")
+
+# The app resolves data paths (chunks.jsonl, faiss.index, benchmark_results.jsonl)
+# relative to the repo root, and imports top-level modules like `config`. Make
+# that work regardless of the directory the server was launched from (e.g. a
+# preview/supervisor process whose cwd is elsewhere) by anchoring to this file's
+# location: dashboard/backend/main.py → repo root is two parents up.
+_REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+os.chdir(_REPO_ROOT)
+sys.path.insert(0, str(_REPO_ROOT))
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
